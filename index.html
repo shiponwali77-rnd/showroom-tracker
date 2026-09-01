@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Standard Group — Showroom Sample Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root{
+    --ink:#221B19;
+    --paper:#FDFBF9;
+    --paper-2:#F5F0EC;
+    --red:#9E1B24;
+    --red-deep:#6E1119;
+    --red-tint:#FBEDEC;
+    --line: rgba(34,27,25,0.12);
+    --muted:#7A6F6A;
+    --shadow: 0 20px 50px -20px rgba(110,17,25,0.25);
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Inter', -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{ font-family: var(--sans); color: var(--ink); background: var(--paper-2); min-height:100vh; -webkit-font-smoothing: antialiased; }
+  .hidden{display:none !important;}
+  ::selection{background: var(--red); color:#fff;}
+  button, select, input{ font-family: var(--sans); }
+
+  /* ---------- LOGIN ---------- */
+  #login-screen{ min-height:100vh; display:grid; grid-template-columns: 1fr 1fr; }
+  .brand-panel{
+    background: radial-gradient(120% 140% at 15% 10%, var(--red) 0%, var(--red-deep) 55%, #430C11 100%);
+    color:#fff; display:flex; flex-direction:column; justify-content:space-between; padding:56px; position:relative; overflow:hidden;
+  }
+  .brand-panel::after{
+    content:""; position:absolute; inset:0;
+    background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.045) 0px, rgba(255,255,255,0.045) 1px, transparent 1px, transparent 64px);
+    pointer-events:none;
+  }
+  .brand-logo{ height:30px; width:auto; }
+  .brand-logo svg{ height:100%; width:auto; display:block; }
+  .brand-tag{ font-size:12.5px; letter-spacing:2px; margin-top:14px; opacity:0.85; }
+  .brand-copy h1{
+    font-family: var(--serif); font-weight:500; font-style:italic;
+    font-size:clamp(30px, 3.6vw, 44px); line-height:1.2; max-width:9.5em; letter-spacing:0.2px;
+  }
+  .brand-copy p{ margin-top:22px; font-size:15px; line-height:1.7; max-width:30em; color: rgba(255,255,255,0.82); }
+  .brand-foot{ font-size:12.5px; color: rgba(255,255,255,0.65); display:flex; gap:28px; flex-wrap:wrap; }
+  .brand-foot span b{color:#fff; font-weight:600;}
+
+  .form-panel{ display:flex; align-items:center; justify-content:center; padding:40px; background: var(--paper); }
+  .login-box{ width:100%; max-width:378px; }
+  .login-box .top-logo{ height:20px; margin-bottom:36px; }
+  .login-box .top-logo svg{ height:100%; width:auto; }
+  .login-box .eyebrow{ font-size:13px; color: var(--muted); margin-bottom:6px; }
+  .login-box h2{ font-family: var(--serif); font-weight:600; font-size:27px; margin-bottom:30px; }
+  .field{ margin-bottom:20px; }
+  .field label{ display:block; font-size:12.5px; color:var(--muted); margin-bottom:7px; font-weight:500; }
+  .field input, .field select{
+    width:100%; border:1px solid var(--line); background:#fff; padding:13px 14px; font-size:14.5px;
+    border-radius:2px; color: var(--ink); transition: border-color .15s ease;
+  }
+  .field input:focus, .field select:focus{ outline:none; border-color: var(--red); }
+  .btn-primary{
+    width:100%; background: var(--red); color:#fff; border:none; padding:14px; font-size:14.5px; font-weight:600;
+    border-radius:2px; cursor:pointer; letter-spacing:0.2px; transition: background .15s ease; margin-top:6px;
+  }
+  .btn-primary:hover{ background: var(--red-deep); }
+  .login-error{ color: var(--red); font-size:13px; margin-top:14px; display:none; }
+  .demo-note{ margin-top:28px; padding:14px 16px; background: var(--red-tint); border-left:2px solid var(--red); font-size:12.5px; color:#5A2226; line-height:1.7; }
+
+  /* ---------- APP SHELL ---------- */
+  #app{ display:none; min-height:100vh; grid-template-columns: 252px 1fr; }
+  #app.active{ display:grid; }
+  .content-col{ display:flex; justify-content:center; }
+
+  .sidebar{ background: var(--ink); color: #EFE7E3; padding:26px 22px; display:flex; flex-direction:column; }
+  .side-brand{ padding-bottom:22px; margin-bottom:22px; border-bottom:1px solid rgba(255,255,255,0.1); }
+  .side-brand .logo{ height:16px; margin-bottom:8px; }
+  .side-brand .logo svg{ height:100%; width:auto; }
+  .side-brand span{ font-size:10px; color:#B4A9A4; letter-spacing:1.5px; }
+
+  .nav-group{ margin-bottom:20px; }
+  .nav-label{ font-size:10.5px; color:#9A8D88; letter-spacing:1.2px; margin-bottom:10px; padding-left:2px;}
+  .nav-item{
+    display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border-radius:3px; cursor:pointer;
+    font-size:13.5px; color:#D8CFCB; margin-bottom:2px; transition: background .12s ease;
+  }
+  .nav-item:hover{ background: rgba(255,255,255,0.06); }
+  .nav-item.active{ background: var(--red); color:#fff; font-weight:500; }
+  .nav-item .count{ font-size:11px; color:#9A8D88; }
+  .nav-item.active .count{ color: rgba(255,255,255,0.75); }
+
+  .tree{ padding-left:8px; }
+  .tree-dept{ font-size:12.5px; color:#B4A9A4; padding:7px 4px 3px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;}
+  .tree-dept:hover{ color:#fff; }
+  .tree-cat{ padding:5px 4px 5px 14px; font-size:12.5px; color:#9A8D88; cursor:pointer; }
+  .tree-cat:hover{ color:#D8CFCB; }
+  .tree-cat.active{ color:#fff; font-weight:600; }
+
+  .sidebar-foot{ margin-top:auto; padding-top:16px; border-top:1px solid rgba(255,255,255,0.1);}
+  .user-chip{ display:flex; align-items:center; gap:10px; }
+  .user-avatar{ width:32px;height:32px; border-radius:50%; background:var(--red); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; flex-shrink:0; }
+  .user-chip div p{ font-size:12.5px; font-weight:600; }
+  .user-chip div span{ font-size:10.5px; color:#9A8D88; }
+  .logout-link{ margin-top:12px; font-size:12px; color:#9A8D88; cursor:pointer; }
+  .logout-link:hover{ color:#fff; }
+
+  .main{ padding:32px 40px 90px; max-width:1320px; width:100%; }
+  .topbar{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:26px; gap:20px; flex-wrap:wrap; }
+  .topbar h1{ font-family:var(--serif); font-weight:600; font-size:26px; }
+  .topbar p.sub{ color:var(--muted); font-size:13.5px; margin-top:6px; }
+  .top-actions{ display:flex; gap:10px; align-items:center; }
+
+  .btn{
+    padding:10px 18px; border-radius:2px; font-size:13.5px; font-weight:600; cursor:pointer; border:1px solid var(--line);
+    background:#fff; color:var(--ink); display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+  }
+  .btn:hover{ border-color: var(--ink); }
+  .btn.solid{ background:var(--red); color:#fff; border-color:var(--red); }
+  .btn.solid:hover{ background:var(--red-deep); }
+  .btn.ghost{ background:transparent; }
+  .btn.small{ padding:7px 12px; font-size:12.5px; }
+  .btn.danger{ color: var(--red); border-color: var(--red); background:#fff; }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+
+  .bell{ position:relative; width:38px; height:38px; border:1px solid var(--line); border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; background:#fff; }
+  .bell .dot{ position:absolute; top:6px; right:7px; width:8px;height:8px; border-radius:50%; background:var(--red); border:1.5px solid #fff; display:none;}
+  .bell.has-alert .dot{ display:block; }
+
+  .stat-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+  .stat-card{ background:#fff; border:1px solid var(--line); padding:20px 22px; }
+  .stat-card .n{ font-family:var(--serif); font-size:29px; font-weight:600; }
+  .stat-card .l{ font-size:12px; color:var(--muted); margin-top:4px; }
+
+  .toolbar{ display:flex; gap:10px; margin-bottom:22px; flex-wrap:wrap; align-items:center; }
+  .toolbar input[type=text]{ flex:1; min-width:200px; padding:11px 14px; border:1px solid var(--line); font-size:13.5px; border-radius:2px; }
+  .toolbar select{ padding:11px 12px; border:1px solid var(--line); font-size:13px; border-radius:2px; background:#fff; }
+
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(216px,1fr)); gap:18px; }
+  .card{ background:#fff; border:1px solid var(--line); overflow:hidden; transition: box-shadow .15s ease, border-color .15s ease; position:relative; cursor:pointer;}
+  .card:hover{ box-shadow: var(--shadow); border-color: transparent; }
+  .card .thumb{ aspect-ratio:1; background:var(--paper-2); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .card .thumb img{ width:100%; height:100%; object-fit:cover; }
+  .card .thumb .ph{ color:#C7BCB7; font-size:11px; text-align:center; padding:10px;}
+  .card .body{ padding:14px 15px 15px; }
+  .card .code{ font-weight:700; font-size:13.5px; }
+  .card .meta{ font-size:11.5px; color:var(--muted); margin-top:4px; line-height:1.5;}
+  .badge{ display:inline-block; font-size:10px; font-weight:700; letter-spacing:0.3px; padding:3px 8px; border-radius:2px; margin-top:9px; margin-right:5px;}
+  .badge.instock{ background:#E9F3EA; color:#2C6E31; }
+  .badge.out{ background:#FBEDEC; color:var(--red); }
+  .badge.nr{ background:var(--paper-2); color:var(--muted); }
+  .badge.loc{ background:#FBF3E4; color:#8A6416; }
+  .card .checkbox{ position:absolute; top:10px; right:10px; width:22px;height:22px; border-radius:50%; background:#fff; border:1.5px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:12px; color:transparent; z-index:2;}
+  .card.picked .checkbox{ background:var(--red); border-color:var(--red); color:#fff; }
+  .card.picked{ outline:2px solid var(--red); outline-offset:-1px; }
+  .card .view-link{ position:absolute; top:10px; left:10px; width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.9); display:flex; align-items:center; justify-content:center; font-size:11px; z-index:2; }
+
+  .empty{ text-align:center; padding:80px 20px; color:var(--muted); }
+  .empty p.big{ font-family:var(--serif); font-size:19px; color:var(--ink); margin-bottom:8px; }
+
+  /* modal */
+  .overlay{ position:fixed; inset:0; background:rgba(34,27,25,0.55); display:none; align-items:center; justify-content:center; z-index:50; padding:24px; }
+  .overlay.active{ display:flex; }
+  .modal{ background:#fff; width:100%; max-width:520px; max-height:88vh; overflow-y:auto; border-radius:2px; }
+  .modal.wide{ max-width:820px; }
+  .modal-head{ padding:22px 26px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; background:#fff; z-index:2;}
+  .modal-head h3{ font-family:var(--serif); font-size:19px; font-weight:600; }
+  .modal-close{ cursor:pointer; font-size:20px; color:var(--muted); line-height:1; }
+  .modal-body{ padding:24px 26px; }
+  .modal-foot{ padding:18px 26px 24px; display:flex; gap:10px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--paper-2); border-radius:2px; margin-bottom:18px; }
+  .toggle-row span{ font-size:13px; font-weight:500; }
+  .switch{ position:relative; width:42px; height:24px; background:#D8CFCB; border-radius:12px; cursor:pointer; transition:background .15s; flex-shrink:0; }
+  .switch.on{ background: var(--red); }
+  .switch::after{ content:""; position:absolute; top:2px; left:2px; width:20px;height:20px; background:#fff; border-radius:50%; transition:transform .15s; }
+  .switch.on::after{ transform:translateX(18px); }
+  .switch.disabled{ opacity:0.5; cursor:not-allowed; }
+
+  /* photo uploader */
+  .photo-strip{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; }
+  .photo-tile{ width:84px; height:84px; border-radius:2px; overflow:hidden; position:relative; background:var(--paper-2); border:1px solid var(--line); }
+  .photo-tile img{ width:100%; height:100%; object-fit:cover; }
+  .photo-tile .lbl{ position:absolute; bottom:0; left:0; right:0; background:rgba(34,27,25,0.72); color:#fff; font-size:9px; padding:2px 4px; text-align:center;}
+  .photo-tile .rm{ position:absolute; top:2px; right:2px; width:16px;height:16px; background:rgba(34,27,25,0.72); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; cursor:pointer; }
+  .photo-add{ width:84px; height:84px; border:1.5px dashed var(--line); border-radius:2px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; color:var(--muted); font-size:11px; gap:4px;}
+  .photo-add:hover{ border-color:var(--red); color:var(--red); }
+
+  .req-item{ border:1px solid var(--line); padding:16px 18px; margin-bottom:12px; border-radius:2px; }
+  .req-item .req-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .req-item .req-top b{ font-size:13.5px; }
+  .req-item .req-top span{ font-size:11.5px; color:var(--muted); }
+  .req-meta{ font-size:12px; color:var(--muted); margin-bottom:10px; line-height:1.6; }
+  .req-thumbs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .req-thumbs .rt{ width:44px;height:44px; background:var(--paper-2); border-radius:2px; overflow:hidden; }
+  .req-thumbs .rt img{ width:100%; height:100%; object-fit:cover; }
+
+  .selection-bar{
+    position:fixed; bottom:0; left:252px; right:0; background:var(--ink); color:#fff;
+    padding:16px 40px; display:none; align-items:center; justify-content:space-between; z-index:20;
+  }
+  .selection-bar.active{ display:flex; }
+  .selection-bar b{ font-family:var(--serif); }
+
+  /* detail modal */
+  .detail-grid{ display:grid; grid-template-columns: 1fr 1fr; gap:26px; }
+  .detail-photo-main{ aspect-ratio:1; background:var(--paper-2); border-radius:2px; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+  .detail-photo-main img{ width:100%; height:100%; object-fit:cover; }
+  .detail-thumbs{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .detail-thumbs .dt{ width:52px; height:52px; border-radius:2px; overflow:hidden; cursor:pointer; border:1.5px solid transparent; background:var(--paper-2); }
+  .detail-thumbs .dt.active{ border-color: var(--red); }
+  .detail-thumbs .dt img{ width:100%; height:100%; object-fit:cover; }
+  .detail-code{ font-family:var(--serif); font-size:22px; font-weight:600; }
+  .detail-path{ font-size:12.5px; color:var(--muted); margin-top:4px; }
+  .detail-facts{ margin-top:16px; }
+  .detail-facts .f{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .detail-facts .f span:first-child{ color:var(--muted); }
+  .detail-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-top:18px; }
+  .hist-list{ margin-top:8px; }
+  .hist-row{ padding:10px 0; border-bottom:1px solid var(--line); font-size:12.5px; display:flex; gap:12px; }
+  .hist-row .hd{ color:var(--muted); min-width:82px; flex-shrink:0; }
+  .section-label{ font-size:11px; letter-spacing:1px; color:var(--muted); margin:22px 0 8px; text-transform:uppercase; }
+
+  /* categories admin */
+  .cat-dept-block{ border:1px solid var(--line); padding:16px 18px; margin-bottom:14px; }
+  .cat-dept-block h4{ font-family:var(--serif); font-size:15px; display:flex; justify-content:space-between; align-items:center; }
+  .cat-cat-row{ margin:12px 0 4px; padding-left:0; }
+  .cat-cat-row .cc-head{ display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:600; margin-bottom:6px; }
+  .chip-list{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+  .chip{ background:var(--paper-2); font-size:11.5px; padding:5px 10px; border-radius:12px; display:flex; align-items:center; gap:6px; }
+  .chip .x{ cursor:pointer; color:var(--muted); }
+  .mini-add{ display:flex; gap:6px; margin-bottom:6px; }
+  .mini-add input{ flex:1; padding:7px 10px; border:1px solid var(--line); font-size:12px; border-radius:2px; }
+  .mini-add button{ padding:7px 12px; border:1px solid var(--line); background:#fff; border-radius:2px; font-size:12px; cursor:pointer; }
+  .x-link{ font-size:11px; color: var(--red); cursor:pointer; }
+
+  @media (max-width: 860px){
+    #login-screen{ grid-template-columns:1fr; }
+    .brand-panel{ display:none; }
+    #app.active{ grid-template-columns:1fr; }
+    .sidebar{ display:none; }
+    .selection-bar{ left:0; }
+    .stat-row{ grid-template-columns:repeat(2,1fr); }
+    .detail-grid{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen">
+  <div class="brand-panel">
+    <div>
+      <div class="brand-logo"><?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1080 134.27">
+  <!-- Generator: Adobe Illustrator 30.0.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 123)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #fff;
+      }
+
+      .st1 {
+        fill: #ca203d;
+      }
+    </style>
+  </defs>
+  <g>
+    <path class="st0" d="M0,81.25l22.67-1.6c.49,4.15,1.49,7.31,3,9.49,2.45,3.52,5.96,5.28,10.52,5.28,3.4,0,6.02-.9,7.86-2.7,1.84-1.8,2.76-3.88,2.76-6.26s-.88-4.27-2.63-6.05c-1.75-1.78-5.82-3.46-12.2-5.04-10.45-2.65-17.9-6.17-22.36-10.56-4.49-4.39-6.73-9.98-6.73-16.78,0-4.47,1.15-8.69,3.45-12.66,2.3-3.97,5.75-7.1,10.36-9.37,4.61-2.27,10.93-3.41,18.96-3.41,9.85,0,17.37,2.07,22.54,6.2s8.25,10.7,9.23,19.72l-22.46,1.48c-.6-3.91-1.85-6.76-3.76-8.54-1.91-1.78-4.55-2.67-7.92-2.67-2.77,0-4.86.66-6.26,1.99-1.4,1.32-2.1,2.94-2.1,4.83,0,1.38.58,2.63,1.74,3.74,1.12,1.15,3.79,2.21,8,3.2,10.42,2.53,17.88,5.09,22.38,7.68,4.51,2.59,7.79,5.8,9.84,9.64,2.05,3.84,3.08,8.12,3.08,12.87,0,5.57-1.37,10.71-4.1,15.42-2.74,4.71-6.56,8.27-11.47,10.7-4.91,2.43-11.1,3.65-18.57,3.65-13.12,0-22.2-2.85-27.25-8.54C3.53,97.27.67,90.03,0,81.26h0Z"/>
+    <path class="st0" d="M76.54,23.08h72.44v21.47h-24.3v65.46h-23.83V44.55h-24.3v-21.47h-.01Z"/>
+    <path class="st0" d="M199.86,95.66h-27.05l-3.76,14.35h-24.33l28.99-86.93h25.99l28.98,86.93h-24.95l-3.86-14.35h-.01ZM194.92,76.86l-8.51-31.25-8.42,31.25h16.94-.01Z"/>
+    <path class="st0" d="M236.41,23.08h22.25l29.04,48.09V23.08h22.46v86.93h-22.46l-28.88-47.73v47.73h-22.41V23.08Z"/>
+    <path class="st0" d="M326.31,23.08h35.4c6.98,0,12.62,1.07,16.91,3.2,4.3,2.13,7.85,5.2,10.65,9.19,2.81,3.99,4.84,8.64,6.1,13.94s1.89,10.91,1.89,16.84c0,9.29-.94,16.49-2.81,21.61-1.88,5.12-4.48,9.41-7.81,12.87s-6.91,5.76-10.73,6.91c-5.23,1.58-9.96,2.37-14.2,2.37h-35.4V23.08ZM350.14,42.77v47.5h5.84c4.98,0,8.52-.62,10.63-1.87,2.1-1.25,3.75-3.42,4.94-6.52s1.79-8.13,1.79-15.09c0-9.21-1.33-15.52-4-18.92-2.67-3.4-7.08-5.1-13.26-5.1h-5.94Z"/>
+    <path class="st0" d="M452.58,95.66h-27.05l-3.76,14.35h-24.33l28.99-86.93h25.99l28.98,86.93h-24.95l-3.86-14.35h-.01ZM447.64,76.86l-8.51-31.25-8.42,31.25h16.94,0Z"/>
+    <path class="st0" d="M489.29,110.01V23.08h39.72c7.37,0,12.99.71,16.89,2.13,3.89,1.42,7.03,4.06,9.42,7.92,2.38,3.85,3.58,8.55,3.58,14.08,0,4.82-.91,8.98-2.74,12.48-1.82,3.5-4.33,6.34-7.53,8.51-2.04,1.38-4.82,2.53-8.37,3.44,2.84,1.07,4.91,2.14,6.2,3.2.88.71,2.15,2.24,3.81,4.57,1.67,2.34,2.78,4.14,3.34,5.4l11.54,25.19h-26.93l-12.74-26.57c-1.61-3.44-3.05-5.67-4.31-6.7-1.72-1.34-3.67-2.02-5.84-2.02h-2.1v35.28h-23.94v.02ZM513.22,58.3h10.05c1.09,0,3.19-.39,6.31-1.19,1.58-.36,2.87-1.26,3.87-2.73,1-1.46,1.5-3.14,1.5-5.04,0-2.81-.79-4.96-2.37-6.46s-4.54-2.25-8.89-2.25h-10.47s0,17.67,0,17.67Z"/>
+    <path class="st0" d="M573.09,23.08h35.4c6.98,0,12.62,1.07,16.91,3.2,4.3,2.13,7.85,5.2,10.65,9.19,2.81,3.99,4.84,8.64,6.1,13.94,1.26,5.3,1.89,10.91,1.89,16.84,0,9.29-.94,16.49-2.81,21.61-1.88,5.12-4.48,9.41-7.81,12.87s-6.91,5.76-10.73,6.91c-5.23,1.58-9.96,2.37-14.2,2.37h-35.4V23.08ZM596.92,42.77v47.5h5.84c4.98,0,8.52-.62,10.63-1.87,2.1-1.25,3.75-3.42,4.94-6.52s1.79-8.13,1.79-15.09c0-9.21-1.33-15.52-4-18.92-2.67-3.4-7.08-5.1-13.26-5.1h-5.94Z"/>
+  </g>
+  <g>
+    <path class="st0" d="M732.86,75.91v-10.2l32.78-.06v32.26c-5.03,4.51-10.22,7.9-15.57,10.17-5.35,2.27-10.84,3.41-16.47,3.41-7.6,0-14.51-1.83-20.72-5.48-6.21-3.66-10.9-8.94-14.07-15.86s-4.75-14.65-4.75-23.18,1.57-16.36,4.72-23.69c3.15-7.33,7.68-12.78,13.59-16.34,5.91-3.56,12.72-5.34,20.43-5.34,5.6,0,10.65,1.02,15.17,3.05,4.52,2.04,8.07,4.87,10.64,8.51s4.52,8.38,5.86,14.23l-9.24,2.85c-1.16-4.43-2.6-7.91-4.33-10.44-1.72-2.53-4.19-4.56-7.39-6.08s-6.76-2.28-10.66-2.28c-4.68,0-8.73.8-12.14,2.4-3.41,1.6-6.17,3.71-8.26,6.32s-3.72,5.48-4.88,8.6c-1.97,5.38-2.96,11.21-2.96,17.49,0,7.75,1.19,14.23,3.56,19.45,2.38,5.22,5.83,9.09,10.37,11.62,4.54,2.53,9.36,3.8,14.46,3.8,4.43,0,8.76-.96,12.98-2.88s7.42-3.96,9.61-6.14v-16.19h-22.75.02Z"/>
+    <path class="st0" d="M780.89,110.01V23.08h34.31c6.9,0,12.14.78,15.73,2.34,3.59,1.56,6.46,4.32,8.6,8.27,2.15,3.95,3.22,8.32,3.22,13.1,0,6.17-1.78,11.37-5.33,15.59-3.55,4.23-9.04,6.92-16.47,8.06,2.71,1.46,4.77,2.91,6.18,4.33,2.99,3.08,5.82,6.94,8.5,11.56l13.46,23.66h-12.88l-10.24-18.09c-2.99-5.22-5.45-9.21-7.39-11.98s-3.67-4.7-5.2-5.81-3.09-1.88-4.67-2.31c-1.16-.28-3.06-.41-5.7-.41h-11.88v38.6h-10.24v.02ZM791.13,61.45h22.01c4.68,0,8.34-.54,10.98-1.63,2.64-1.09,4.65-2.83,6.02-5.22s2.06-4.99,2.06-7.8c0-4.11-1.33-7.49-3.98-10.14-2.66-2.65-6.85-3.97-12.59-3.97h-24.49v28.76h-.01Z"/>
+    <path class="st0" d="M855.68,67.67c0-14.43,3.45-25.72,10.35-33.89,6.9-8.16,15.8-12.24,26.71-12.24,7.14,0,13.58,1.92,19.32,5.75,5.73,3.83,10.11,9.18,13.12,16.04s4.51,14.64,4.51,23.33-1.58,16.7-4.75,23.66c-3.17,6.96-7.65,12.23-13.46,15.8-5.81,3.58-12.07,5.37-18.79,5.37-7.28,0-13.79-1.98-19.53-5.93-5.74-3.95-10.08-9.35-13.04-16.19-2.96-6.84-4.43-14.07-4.43-21.7h-.01ZM866.24,67.85c0,10.48,2.51,18.73,7.52,24.76s11.3,9.04,18.87,9.04,14.05-3.04,19.03-9.13c4.98-6.09,7.47-14.73,7.47-25.91,0-7.08-1.06-13.25-3.19-18.53s-5.24-9.37-9.34-12.27c-4.1-2.91-8.7-4.36-13.8-4.36-7.25,0-13.49,2.8-18.71,8.39-5.23,5.59-7.84,14.93-7.84,28.02h0Z"/>
+    <path class="st0" d="M993.65,23.08h10.24v50.23c0,8.74-.88,15.67-2.64,20.81s-4.93,9.32-9.53,12.54c-4.59,3.22-10.62,4.83-18.08,4.83s-13.18-1.4-17.79-4.21-7.9-6.87-9.87-12.19-2.96-12.58-2.96-21.79V23.08h10.24v50.17c0,7.55.62,13.12,1.87,16.69,1.25,3.58,3.4,6.34,6.44,8.27,3.04,1.94,6.76,2.91,11.16,2.91,7.53,0,12.9-1.92,16.1-5.75,3.2-3.83,4.8-11.21,4.8-22.12V23.08h.02Z"/>
+    <path class="st0" d="M1020.94,110.01V23.08h29.19c5.14,0,9.06.28,11.77.83,3.8.71,6.98,2.07,9.55,4.06,2.57,2,4.64,4.79,6.2,8.39,1.57,3.6,2.35,7.55,2.35,11.86,0,7.39-2.09,13.65-6.28,18.77-4.19,5.12-11.75,7.68-22.7,7.68h-19.85v35.34h-10.24,0ZM1031.18,64.41h20c6.61,0,11.31-1.38,14.09-4.15,2.78-2.77,4.17-6.66,4.17-11.68,0-3.64-.82-6.75-2.45-9.34-1.64-2.59-3.79-4.3-6.47-5.13-1.72-.51-4.91-.77-9.55-.77h-19.79v31.07Z"/>
+  </g>
+  <rect class="st1" x="660.91" width="16.37" height="134.27"/>
+</svg></div>
+      <div class="brand-tag">SHOWROOM SAMPLE TRACKER</div>
+    </div>
+    <div class="brand-copy">
+      <h1>Every sample, every showroom, one record.</h1>
+      <p>The internal showcase system for Standard Group's factories — tracking what's on display, what's on loan, and what's gone for good, across every showroom in the group.</p>
+    </div>
+    <div class="brand-foot">
+      <span><b>CET · ITSL · SDL · TCESL</b></span>
+      <span><b>Live</b> sample status</span>
+      <span><b>Buyer</b>-ready</span>
+    </div>
+  </div>
+  <div class="form-panel">
+    <div class="login-box">
+      <div class="top-logo"><?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1080 134.27">
+  <!-- Generator: Adobe Illustrator 30.0.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 123)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #454747;
+      }
+
+      .st1 {
+        fill: #ca203d;
+      }
+    </style>
+  </defs>
+  <g>
+    <path class="st0" d="M0,81.25l22.67-1.6c.49,4.15,1.49,7.31,3,9.49,2.45,3.52,5.96,5.28,10.52,5.28,3.4,0,6.02-.9,7.86-2.7,1.84-1.8,2.76-3.88,2.76-6.26s-.88-4.27-2.63-6.05c-1.75-1.78-5.82-3.46-12.2-5.04-10.45-2.65-17.9-6.17-22.36-10.56-4.49-4.39-6.73-9.98-6.73-16.78,0-4.47,1.15-8.69,3.45-12.66,2.3-3.97,5.75-7.1,10.36-9.37,4.61-2.27,10.93-3.41,18.96-3.41,9.85,0,17.37,2.07,22.54,6.2,5.17,4.13,8.25,10.7,9.23,19.72l-22.46,1.48c-.6-3.91-1.85-6.76-3.76-8.54-1.91-1.78-4.55-2.67-7.92-2.67-2.77,0-4.86.66-6.26,1.99-1.4,1.32-2.1,2.94-2.1,4.83,0,1.38.58,2.63,1.74,3.74,1.12,1.15,3.79,2.21,8,3.2,10.42,2.53,17.88,5.09,22.38,7.68,4.51,2.59,7.79,5.8,9.84,9.64,2.05,3.84,3.08,8.12,3.08,12.87,0,5.57-1.37,10.71-4.1,15.42-2.74,4.71-6.56,8.27-11.47,10.7-4.91,2.43-11.1,3.65-18.57,3.65-13.12,0-22.2-2.85-27.25-8.54-5.05-5.69-7.91-12.93-8.57-21.7Z"/>
+    <path class="st0" d="M76.54,23.08h72.44v21.47h-24.3v65.46h-23.83V44.55h-24.3v-21.47Z"/>
+    <path class="st0" d="M199.86,95.66h-27.05l-3.76,14.35h-24.33l28.99-86.93h25.99l28.98,86.93h-24.95l-3.86-14.35ZM194.92,76.86l-8.51-31.25-8.42,31.25h16.94Z"/>
+    <path class="st0" d="M236.41,23.08h22.25l29.04,48.09V23.08h22.46v86.93h-22.46l-28.88-47.73v47.73h-22.41V23.08Z"/>
+    <path class="st0" d="M326.31,23.08h35.4c6.98,0,12.62,1.07,16.91,3.2,4.3,2.13,7.85,5.2,10.65,9.19,2.81,3.99,4.84,8.64,6.1,13.94,1.26,5.3,1.89,10.91,1.89,16.84,0,9.29-.94,16.49-2.81,21.61-1.88,5.12-4.48,9.41-7.81,12.87-3.33,3.46-6.91,5.76-10.73,6.91-5.23,1.58-9.96,2.37-14.2,2.37h-35.4V23.08ZM350.14,42.77v47.5h5.84c4.98,0,8.52-.62,10.63-1.87,2.1-1.25,3.75-3.42,4.94-6.52,1.19-3.1,1.79-8.13,1.79-15.09,0-9.21-1.33-15.52-4-18.92-2.67-3.4-7.08-5.1-13.26-5.1h-5.94Z"/>
+    <path class="st0" d="M452.58,95.66h-27.05l-3.76,14.35h-24.33l28.99-86.93h25.99l28.98,86.93h-24.95l-3.86-14.35ZM447.64,76.86l-8.51-31.25-8.42,31.25h16.94Z"/>
+    <path class="st0" d="M489.29,110.01V23.08h39.72c7.37,0,12.99.71,16.89,2.13,3.89,1.42,7.03,4.06,9.42,7.92,2.38,3.85,3.58,8.55,3.58,14.08,0,4.82-.91,8.98-2.74,12.48-1.82,3.5-4.33,6.34-7.53,8.51-2.04,1.38-4.82,2.53-8.37,3.44,2.84,1.07,4.91,2.14,6.2,3.2.88.71,2.15,2.24,3.81,4.57,1.67,2.34,2.78,4.14,3.34,5.4l11.54,25.19h-26.93l-12.74-26.57c-1.61-3.44-3.05-5.67-4.31-6.7-1.72-1.34-3.67-2.02-5.84-2.02h-2.1v35.28h-23.94ZM513.22,58.3h10.05c1.09,0,3.19-.39,6.31-1.19,1.58-.36,2.87-1.26,3.87-2.73,1-1.46,1.5-3.14,1.5-5.04,0-2.81-.79-4.96-2.37-6.46-1.58-1.5-4.54-2.25-8.89-2.25h-10.47v17.67Z"/>
+    <path class="st0" d="M573.09,23.08h35.4c6.98,0,12.62,1.07,16.91,3.2,4.3,2.13,7.85,5.2,10.65,9.19,2.81,3.99,4.84,8.64,6.1,13.94,1.26,5.3,1.89,10.91,1.89,16.84,0,9.29-.94,16.49-2.81,21.61-1.88,5.12-4.48,9.41-7.81,12.87-3.33,3.46-6.91,5.76-10.73,6.91-5.23,1.58-9.96,2.37-14.2,2.37h-35.4V23.08ZM596.92,42.77v47.5h5.84c4.98,0,8.52-.62,10.63-1.87,2.1-1.25,3.75-3.42,4.94-6.52,1.19-3.1,1.79-8.13,1.79-15.09,0-9.21-1.33-15.52-4-18.92-2.67-3.4-7.08-5.1-13.26-5.1h-5.94Z"/>
+  </g>
+  <g>
+    <path class="st0" d="M732.86,75.91v-10.2l32.78-.06v32.26c-5.03,4.51-10.22,7.9-15.57,10.17-5.35,2.27-10.84,3.41-16.47,3.41-7.6,0-14.51-1.83-20.72-5.48-6.21-3.66-10.9-8.94-14.07-15.86-3.17-6.92-4.75-14.65-4.75-23.18s1.57-16.36,4.72-23.69c3.15-7.33,7.68-12.78,13.59-16.34,5.91-3.56,12.72-5.34,20.43-5.34,5.6,0,10.65,1.02,15.17,3.05,4.52,2.04,8.07,4.87,10.64,8.51,2.57,3.64,4.52,8.38,5.86,14.23l-9.24,2.85c-1.16-4.43-2.6-7.91-4.33-10.44-1.72-2.53-4.19-4.56-7.39-6.08-3.2-1.52-6.76-2.28-10.66-2.28-4.68,0-8.73.8-12.14,2.4-3.41,1.6-6.17,3.71-8.26,6.32-2.09,2.61-3.72,5.48-4.88,8.6-1.97,5.38-2.96,11.21-2.96,17.49,0,7.75,1.19,14.23,3.56,19.45,2.38,5.22,5.83,9.09,10.37,11.62,4.54,2.53,9.36,3.8,14.46,3.8,4.43,0,8.76-.96,12.98-2.88,4.22-1.92,7.42-3.96,9.61-6.14v-16.19h-22.75Z"/>
+    <path class="st0" d="M780.89,110.01V23.08h34.31c6.9,0,12.14.78,15.73,2.34,3.59,1.56,6.46,4.32,8.6,8.27,2.15,3.95,3.22,8.32,3.22,13.1,0,6.17-1.78,11.37-5.33,15.59-3.55,4.23-9.04,6.92-16.47,8.06,2.71,1.46,4.77,2.91,6.18,4.33,2.99,3.08,5.82,6.94,8.5,11.56l13.46,23.66h-12.88l-10.24-18.09c-2.99-5.22-5.45-9.21-7.39-11.98-1.94-2.77-3.67-4.7-5.2-5.81-1.53-1.11-3.09-1.88-4.67-2.31-1.16-.28-3.06-.41-5.7-.41h-11.88v38.6h-10.24ZM791.13,61.45h22.01c4.68,0,8.34-.54,10.98-1.63,2.64-1.09,4.65-2.83,6.02-5.22,1.37-2.39,2.06-4.99,2.06-7.8,0-4.11-1.33-7.49-3.98-10.14-2.66-2.65-6.85-3.97-12.59-3.97h-24.49v28.76Z"/>
+    <path class="st0" d="M855.68,67.67c0-14.43,3.45-25.72,10.35-33.89,6.9-8.16,15.8-12.24,26.71-12.24,7.14,0,13.58,1.92,19.32,5.75,5.73,3.83,10.11,9.18,13.12,16.04,3.01,6.86,4.51,14.64,4.51,23.33s-1.58,16.7-4.75,23.66c-3.17,6.96-7.65,12.23-13.46,15.8-5.81,3.58-12.07,5.37-18.79,5.37-7.28,0-13.79-1.98-19.53-5.93-5.74-3.95-10.08-9.35-13.04-16.19-2.96-6.84-4.43-14.07-4.43-21.7ZM866.24,67.85c0,10.48,2.51,18.73,7.52,24.76,5.01,6.03,11.3,9.04,18.87,9.04s14.05-3.04,19.03-9.13c4.98-6.09,7.47-14.73,7.47-25.91,0-7.08-1.06-13.25-3.19-18.53-2.13-5.28-5.24-9.37-9.34-12.27-4.1-2.91-8.7-4.36-13.8-4.36-7.25,0-13.49,2.8-18.71,8.39-5.23,5.59-7.84,14.93-7.84,28.02Z"/>
+    <path class="st0" d="M993.65,23.08h10.24v50.23c0,8.74-.88,15.67-2.64,20.81-1.76,5.14-4.93,9.32-9.53,12.54-4.59,3.22-10.62,4.83-18.08,4.83s-13.18-1.4-17.79-4.21c-4.61-2.81-7.9-6.87-9.87-12.19-1.97-5.32-2.96-12.58-2.96-21.79V23.08h10.24v50.17c0,7.55.62,13.12,1.87,16.69,1.25,3.58,3.4,6.34,6.44,8.27,3.04,1.94,6.76,2.91,11.16,2.91,7.53,0,12.9-1.92,16.1-5.75,3.2-3.83,4.8-11.21,4.8-22.12V23.08Z"/>
+    <path class="st0" d="M1020.94,110.01V23.08h29.19c5.14,0,9.06.28,11.77.83,3.8.71,6.98,2.07,9.55,4.06,2.57,2,4.64,4.79,6.2,8.39,1.57,3.6,2.35,7.55,2.35,11.86,0,7.39-2.09,13.65-6.28,18.77-4.19,5.12-11.75,7.68-22.7,7.68h-19.85v35.34h-10.24ZM1031.18,64.41h20c6.61,0,11.31-1.38,14.09-4.15,2.78-2.77,4.17-6.66,4.17-11.68,0-3.64-.82-6.75-2.45-9.34-1.64-2.59-3.79-4.3-6.47-5.13-1.72-.51-4.91-.77-9.55-.77h-19.79v31.07Z"/>
+  </g>
+  <rect class="st1" x="660.91" width="16.37" height="134.27"/>
+</svg></div>
+      <div class="eyebrow">Showroom Sample Tracker</div>
+      <h2>Sign in to your account</h2>
+      <div class="field"><label>Username</label><input type="text" id="login-user" placeholder="e.g. showroomcet" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn-primary" onclick="attemptLogin()">Sign in</button>
+      <div class="login-error" id="login-error">Incorrect username or password.</div>
+      <div class="demo-note">
+        <b>Demo accounts</b> (password = username):<br>
+        superadmin · director · showroomcet · showroomitsl · merchandiser1 · designer1
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app">
+  <div class="sidebar">
+    <div class="side-brand">
+      <div class="logo"><?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" version="1.1" viewBox="0 0 1080 134.27">
+  <!-- Generator: Adobe Illustrator 30.0.0, SVG Export Plug-In . SVG Version: 2.1.1 Build 123)  -->
+  <defs>
+    <style>
+      .st0 {
+        fill: #fff;
+      }
+
+      .st1 {
+        fill: #ca203d;
+      }
+    </style>
+  </defs>
+  <g>
+    <path class="st0" d="M0,81.25l22.67-1.6c.49,4.15,1.49,7.31,3,9.49,2.45,3.52,5.96,5.28,10.52,5.28,3.4,0,6.02-.9,7.86-2.7,1.84-1.8,2.76-3.88,2.76-6.26s-.88-4.27-2.63-6.05c-1.75-1.78-5.82-3.46-12.2-5.04-10.45-2.65-17.9-6.17-22.36-10.56-4.49-4.39-6.73-9.98-6.73-16.78,0-4.47,1.15-8.69,3.45-12.66,2.3-3.97,5.75-7.1,10.36-9.37,4.61-2.27,10.93-3.41,18.96-3.41,9.85,0,17.37,2.07,22.54,6.2s8.25,10.7,9.23,19.72l-22.46,1.48c-.6-3.91-1.85-6.76-3.76-8.54-1.91-1.78-4.55-2.67-7.92-2.67-2.77,0-4.86.66-6.26,1.99-1.4,1.32-2.1,2.94-2.1,4.83,0,1.38.58,2.63,1.74,3.74,1.12,1.15,3.79,2.21,8,3.2,10.42,2.53,17.88,5.09,22.38,7.68,4.51,2.59,7.79,5.8,9.84,9.64,2.05,3.84,3.08,8.12,3.08,12.87,0,5.57-1.37,10.71-4.1,15.42-2.74,4.71-6.56,8.27-11.47,10.7-4.91,2.43-11.1,3.65-18.57,3.65-13.12,0-22.2-2.85-27.25-8.54C3.53,97.27.67,90.03,0,81.26h0Z"/>
+    <path class="st0" d="M76.54,23.08h72.44v21.47h-24.3v65.46h-23.83V44.55h-24.3v-21.47h-.01Z"/>
+    <path class="st0" d="M199.86,95.66h-27.05l-3.76,14.35h-24.33l28.99-86.93h25.99l28.98,86.93h-24.95l-3.86-14.35h-.01ZM194.92,76.86l-8.51-31.25-8.42,31.25h16.94-.01Z"/>
+    <path class="st0" d="M236.41,23.08h22.25l29.04,48.09V23.08h22.46v86.93h-22.46l-28.88-47.73v47.73h-22.41V23.08Z"/>
+    <path class="st0" d="M326.31,23.08h35.4c6.98,0,12.62,1.07,16.91,3.2,4.3,2.13,7.85,5.2,10.65,9.19,2.81,3.99,4.84,8.64,6.1,13.94s1.89,10.91,1.89,16.84c0,9.29-.94,16.49-2.81,21.61-1.88,5.12-4.48,9.41-7.81,12.87s-6.91,5.76-10.73,6.91c-5.23,1.58-9.96,2.37-14.2,2.37h-35.4V23.08ZM350.14,42.77v47.5h5.84c4.98,0,8.52-.62,10.63-1.87,2.1-1.25,3.75-3.42,4.94-6.52s1.79-8.13,1.79-15.09c0-9.21-1.33-15.52-4-18.92-2.67-3.4-7.08-5.1-13.26-5.1h-5.94Z"/>
+    <path class="st0" d="M452.58,95.66h-27.05l-3.76,14.35h-24.33l28.99-86.93h25.99l28.98,86.93h-24.95l-3.86-14.35h-.01ZM447.64,76.86l-8.51-31.25-8.42,31.25h16.94,0Z"/>
+    <path class="st0" d="M489.29,110.01V23.08h39.72c7.37,0,12.99.71,16.89,2.13,3.89,1.42,7.03,4.06,9.42,7.92,2.38,3.85,3.58,8.55,3.58,14.08,0,4.82-.91,8.98-2.74,12.48-1.82,3.5-4.33,6.34-7.53,8.51-2.04,1.38-4.82,2.53-8.37,3.44,2.84,1.07,4.91,2.14,6.2,3.2.88.71,2.15,2.24,3.81,4.57,1.67,2.34,2.78,4.14,3.34,5.4l11.54,25.19h-26.93l-12.74-26.57c-1.61-3.44-3.05-5.67-4.31-6.7-1.72-1.34-3.67-2.02-5.84-2.02h-2.1v35.28h-23.94v.02ZM513.22,58.3h10.05c1.09,0,3.19-.39,6.31-1.19,1.58-.36,2.87-1.26,3.87-2.73,1-1.46,1.5-3.14,1.5-5.04,0-2.81-.79-4.96-2.37-6.46s-4.54-2.25-8.89-2.25h-10.47s0,17.67,0,17.67Z"/>
+    <path class="st0" d="M573.09,23.08h35.4c6.98,0,12.62,1.07,16.91,3.2,4.3,2.13,7.85,5.2,10.65,9.19,2.81,3.99,4.84,8.64,6.1,13.94,1.26,5.3,1.89,10.91,1.89,16.84,0,9.29-.94,16.49-2.81,21.61-1.88,5.12-4.48,9.41-7.81,12.87s-6.91,5.76-10.73,6.91c-5.23,1.58-9.96,2.37-14.2,2.37h-35.4V23.08ZM596.92,42.77v47.5h5.84c4.98,0,8.52-.62,10.63-1.87,2.1-1.25,3.75-3.42,4.94-6.52s1.79-8.13,1.79-15.09c0-9.21-1.33-15.52-4-18.92-2.67-3.4-7.08-5.1-13.26-5.1h-5.94Z"/>
+  </g>
+  <g>
+    <path class="st0" d="M732.86,75.91v-10.2l32.78-.06v32.26c-5.03,4.51-10.22,7.9-15.57,10.17-5.35,2.27-10.84,3.41-16.47,3.41-7.6,0-14.51-1.83-20.72-5.48-6.21-3.66-10.9-8.94-14.07-15.86s-4.75-14.65-4.75-23.18,1.57-16.36,4.72-23.69c3.15-7.33,7.68-12.78,13.59-16.34,5.91-3.56,12.72-5.34,20.43-5.34,5.6,0,10.65,1.02,15.17,3.05,4.52,2.04,8.07,4.87,10.64,8.51s4.52,8.38,5.86,14.23l-9.24,2.85c-1.16-4.43-2.6-7.91-4.33-10.44-1.72-2.53-4.19-4.56-7.39-6.08s-6.76-2.28-10.66-2.28c-4.68,0-8.73.8-12.14,2.4-3.41,1.6-6.17,3.71-8.26,6.32s-3.72,5.48-4.88,8.6c-1.97,5.38-2.96,11.21-2.96,17.49,0,7.75,1.19,14.23,3.56,19.45,2.38,5.22,5.83,9.09,10.37,11.62,4.54,2.53,9.36,3.8,14.46,3.8,4.43,0,8.76-.96,12.98-2.88s7.42-3.96,9.61-6.14v-16.19h-22.75.02Z"/>
+    <path class="st0" d="M780.89,110.01V23.08h34.31c6.9,0,12.14.78,15.73,2.34,3.59,1.56,6.46,4.32,8.6,8.27,2.15,3.95,3.22,8.32,3.22,13.1,0,6.17-1.78,11.37-5.33,15.59-3.55,4.23-9.04,6.92-16.47,8.06,2.71,1.46,4.77,2.91,6.18,4.33,2.99,3.08,5.82,6.94,8.5,11.56l13.46,23.66h-12.88l-10.24-18.09c-2.99-5.22-5.45-9.21-7.39-11.98s-3.67-4.7-5.2-5.81-3.09-1.88-4.67-2.31c-1.16-.28-3.06-.41-5.7-.41h-11.88v38.6h-10.24v.02ZM791.13,61.45h22.01c4.68,0,8.34-.54,10.98-1.63,2.64-1.09,4.65-2.83,6.02-5.22s2.06-4.99,2.06-7.8c0-4.11-1.33-7.49-3.98-10.14-2.66-2.65-6.85-3.97-12.59-3.97h-24.49v28.76h-.01Z"/>
+    <path class="st0" d="M855.68,67.67c0-14.43,3.45-25.72,10.35-33.89,6.9-8.16,15.8-12.24,26.71-12.24,7.14,0,13.58,1.92,19.32,5.75,5.73,3.83,10.11,9.18,13.12,16.04s4.51,14.64,4.51,23.33-1.58,16.7-4.75,23.66c-3.17,6.96-7.65,12.23-13.46,15.8-5.81,3.58-12.07,5.37-18.79,5.37-7.28,0-13.79-1.98-19.53-5.93-5.74-3.95-10.08-9.35-13.04-16.19-2.96-6.84-4.43-14.07-4.43-21.7h-.01ZM866.24,67.85c0,10.48,2.51,18.73,7.52,24.76s11.3,9.04,18.87,9.04,14.05-3.04,19.03-9.13c4.98-6.09,7.47-14.73,7.47-25.91,0-7.08-1.06-13.25-3.19-18.53s-5.24-9.37-9.34-12.27c-4.1-2.91-8.7-4.36-13.8-4.36-7.25,0-13.49,2.8-18.71,8.39-5.23,5.59-7.84,14.93-7.84,28.02h0Z"/>
+    <path class="st0" d="M993.65,23.08h10.24v50.23c0,8.74-.88,15.67-2.64,20.81s-4.93,9.32-9.53,12.54c-4.59,3.22-10.62,4.83-18.08,4.83s-13.18-1.4-17.79-4.21-7.9-6.87-9.87-12.19-2.96-12.58-2.96-21.79V23.08h10.24v50.17c0,7.55.62,13.12,1.87,16.69,1.25,3.58,3.4,6.34,6.44,8.27,3.04,1.94,6.76,2.91,11.16,2.91,7.53,0,12.9-1.92,16.1-5.75,3.2-3.83,4.8-11.21,4.8-22.12V23.08h.02Z"/>
+    <path class="st0" d="M1020.94,110.01V23.08h29.19c5.14,0,9.06.28,11.77.83,3.8.71,6.98,2.07,9.55,4.06,2.57,2,4.64,4.79,6.2,8.39,1.57,3.6,2.35,7.55,2.35,11.86,0,7.39-2.09,13.65-6.28,18.77-4.19,5.12-11.75,7.68-22.7,7.68h-19.85v35.34h-10.24,0ZM1031.18,64.41h20c6.61,0,11.31-1.38,14.09-4.15,2.78-2.77,4.17-6.66,4.17-11.68,0-3.64-.82-6.75-2.45-9.34-1.64-2.59-3.79-4.3-6.47-5.13-1.72-.51-4.91-.77-9.55-.77h-19.79v31.07Z"/>
+  </g>
+  <rect class="st1" x="660.91" width="16.37" height="134.27"/>
+</svg></div>
+      <span>SHOWROOM SAMPLE TRACKER</span>
+    </div>
+    <div class="nav-group" id="nav-primary"></div>
+    <div class="nav-group" id="nav-factory-group">
+      <div class="nav-label">FACTORY</div>
+      <div id="factory-list"></div>
+    </div>
+    <div class="nav-group" id="nav-dept-group">
+      <div class="nav-label">DEPARTMENT</div>
+      <div class="tree" id="dept-tree"></div>
+    </div>
+    <div class="sidebar-foot">
+      <div class="user-chip">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div><p id="user-name">—</p><span id="user-role">—</span></div>
+      </div>
+      <div class="logout-link" onclick="logout()">Sign out</div>
+    </div>
+  </div>
+  <div class="content-col"><div class="main" id="main"></div></div>
+</div>
+
+<div class="selection-bar" id="selection-bar">
+  <div><b id="sel-count">0</b>&nbsp; samples selected</div>
+  <div style="display:flex; gap:10px;">
+    <button class="btn ghost" onclick="clearSelection()" style="color:#fff; border-color:rgba(255,255,255,0.3);">Clear</button>
+    <button class="btn solid" id="selection-action-btn" onclick="handleSelectionAction()">Send request to showroom →</button>
+  </div>
+</div>
+
+<!-- Add Sample Modal -->
+<div class="overlay" id="modal-add">
+  <div class="modal">
+    <div class="modal-head"><h3>Add sample</h3><span class="modal-close" onclick="closeModal('modal-add')">&times;</span></div>
+    <div class="modal-body">
+      <div class="photo-strip" id="photo-strip"></div>
+      <input type="file" id="photo-input" accept="image/*" multiple class="hidden" onchange="handlePhotoUpload(event)">
+      <div class="row2">
+        <div class="field"><label>Sample code</label><input type="text" id="f-code" placeholder="e.g. SG-MB-0231"></div>
+        <div class="field"><label>Entry date</label><input type="date" id="f-date"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Factory (source)</label><select id="f-factory"></select></div>
+        <div class="field"><label>Department</label><select id="f-dept" onchange="populateModalCategories()"></select></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Category</label><select id="f-cat" onchange="populateModalSubcats()"></select></div>
+        <div class="field"><label>Style</label><select id="f-subcat"></select></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="saveSample()">Save to showroom</button></div>
+  </div>
+</div>
+
+<!-- Request Modal (merchandiser / designer) -->
+<div class="overlay" id="modal-request">
+  <div class="modal">
+    <div class="modal-head"><h3>Request samples</h3><span class="modal-close" onclick="closeModal('modal-request')">&times;</span></div>
+    <div class="modal-body">
+      <p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;" id="req-summary"></p>
+      <div class="row2">
+        <div class="field"><label>Your ID card number</label><input type="text" id="req-id" placeholder="e.g. SG-0452"></div>
+        <div class="field"><label>Reason</label>
+          <select id="req-reason"><option>Development</option><option>Design</option><option>Meeting</option><option>Gift</option><option>Other</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Where are you taking these?</label><input type="text" id="req-destination" placeholder="e.g. Buyer office, Gulshan"></div>
+    </div>
+    <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="sendRequest()">Notify showroom staff</button></div>
+  </div>
+</div>
+
+<!-- Checkout / Fulfill Modal -->
+<div class="overlay" id="modal-checkout">
+  <div class="modal">
+    <div class="modal-head"><h3 id="co-title">Hand over sample</h3><span class="modal-close" onclick="closeModal('modal-checkout')">&times;</span></div>
+    <div class="modal-body">
+      <div class="row2">
+        <div class="field"><label>Name</label><input type="text" id="co-name" placeholder="Full name"></div>
+        <div class="field"><label>ID card number</label><input type="text" id="co-id" placeholder="e.g. SG-0452"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Taking it to (destination)</label><input type="text" id="co-destination" placeholder="e.g. Buyer office"></div>
+        <div class="field"><label>Reason</label>
+          <select id="co-reason"><option>Development</option><option>Design</option><option>Meeting</option><option>Gift</option><option>Other</option></select>
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span>Returnable — must come back</span>
+        <div class="switch on" id="co-returnable" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="confirmCheckout()">Confirm hand-over</button></div>
+  </div>
+</div>
+
+<!-- Transfer Modal -->
+<div class="overlay" id="modal-transfer">
+  <div class="modal">
+    <div class="modal-head"><h3>Transfer for showcase</h3><span class="modal-close" onclick="closeModal('modal-transfer')">&times;</span></div>
+    <div class="modal-body">
+      <div class="field"><label>Send to factory</label><select id="tr-factory"></select></div>
+    </div>
+    <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="confirmTransfer()">Confirm transfer</button></div>
+  </div>
+</div>
+
+<!-- Product Detail Modal -->
+<div class="overlay" id="modal-detail">
+  <div class="modal wide">
+    <div class="modal-head"><h3 id="dt-code">—</h3><span class="modal-close" onclick="closeModal('modal-detail')">&times;</span></div>
+    <div class="modal-body">
+      <div class="detail-grid">
+        <div>
+          <div class="detail-photo-main" id="dt-main"></div>
+          <div class="detail-thumbs" id="dt-thumbs"></div>
+        </div>
+        <div>
+          <div class="detail-path" id="dt-path">—</div>
+          <div id="dt-badges"></div>
+          <div class="detail-facts" id="dt-facts"></div>
+          <div class="detail-actions" id="dt-actions"></div>
+        </div>
+      </div>
+      <div class="section-label">Full history</div>
+      <div class="hist-list" id="dt-history"></div>
+      <button class="btn small" style="margin-top:14px;" onclick="printHistory()">🖨 Print history</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit User Modal -->
+<div class="overlay" id="modal-user">
+  <div class="modal">
+    <div class="modal-head"><h3 id="user-modal-title">Create account</h3><span class="modal-close" onclick="closeModal('modal-user')">&times;</span></div>
+    <div class="modal-body">
+      <div class="row2">
+        <div class="field"><label>Full name</label><input type="text" id="u-name"></div>
+        <div class="field"><label>Username</label><input type="text" id="u-user"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Password</label><input type="text" id="u-pass"></div>
+        <div class="field"><label>Role</label>
+          <select id="u-role" onchange="toggleUserFactoryField()">
+            <option value="superadmin">Super Admin</option>
+            <option value="director">Executive Director</option>
+            <option value="showroom" selected>Showroom Person</option>
+            <option value="merchandiser">Merchandiser</option>
+            <option value="designer">Designer (R&amp;D)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field" id="u-factory-field"><label>Assigned factory</label><select id="u-factory"></select></div>
+        <div class="field"><label>Title (optional)</label><input type="text" id="u-title" placeholder="e.g. R&amp;D Head"></div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="saveUser()">Save account</button></div>
+  </div>
+</div>
+
+<script>
+/* ============ DEFAULT DATA ============ */
+const FACTORIES = ["CET","ITSL","SDL","TCESL"];
+const REASONS = ["Development","Design","Meeting","Gift","Other"];
+const PHOTO_LABELS = ["Front","Back","Side","Close-up","Extra"];
+
+const DEFAULT_CATEGORY_TREE = {
+  "Men's": {
+    "Tops": ["T-Shirts","Polo Shirts","Shirts","Sweatshirts","Hoodies","Tank Tops"],
+    "Bottoms": ["Shorts","Chino Pants","Trouser","Joggers","Denim Pants","Long Bermuda"],
+    "Outerwear": ["Jackets","Coats","Vests"]
+  },
+  "Women's": {
+    "Tops": ["T-Shirts","Blouses","Sweaters","Tank Tops"],
+    "Bottoms": ["Shorts","Chino Pants","Trouser","Joggers","Denim Pants","Leggings"],
+    "Dresses & Sets": ["Dresses","Jumpsuits","Co-ord Sets"],
+    "Outerwear": ["Jackets","Coats","Vests"]
+  },
+  "Kids'": {
+    "Tops": ["T-Shirts","Shirts","Sweatshirts","Hoodies"],
+    "Bottoms": ["Shorts","Trouser","Joggers","Denim Pants"],
+    "Dresses & Sets": ["Dresses","Co-ord Sets"],
+    "Outerwear": ["Jackets","Vests"]
+  }
+};
+
+const DEMO_USERS = {
+  superadmin:   { password:"superadmin",   role:"superadmin",   name:"Rafiq Ahmed" },
+  director:     { password:"director",     role:"director",     name:"Tofazzal Ali" },
+  showroomcet:  { password:"showroomcet",  role:"showroom",     name:"Kamal Hossain", factory:"CET" },
+  showroomitsl: { password:"showroomitsl", role:"showroom",     name:"Abdul Karim",   factory:"ITSL" },
+  merchandiser1:{ password:"merchandiser1",role:"merchandiser", name:"Farhana Rahman" },
+  designer1:    { password:"designer1",    role:"designer",     name:"Waliullah Shipon", title:"R&D Head" }
+};
+
+function seedSamples(){
+  const mk = (id,code,dept,cat,subcat,factory,date)=>({
+    id, code, dept, cat, subcat, homeFactory:factory, currentLocation:factory,
+    photos:[], status:'instock', checkout:null,
+    enteredBy:'System', enteredDate:date,
+    history:[{type:'entry', date, by:'System', factory}]
+  });
+  return [
+    mk("s1","SG-MB-0231","Men's","Bottoms","Chino Pants","CET","2026-08-20"),
+    mk("s2","SG-MT-0114","Men's","Tops","Polo Shirts","CET","2026-08-18"),
+    mk("s3","SG-KB-0055","Kids'","Bottoms","Joggers","ITSL","2026-08-10"),
+    mk("s4","SG-MB-0245","Men's","Bottoms","Shorts","CET","2026-08-28")
+  ];
+}
+
+/* ============ BACKEND CONFIG ============ */
+// Paste your deployed Google Apps Script Web App URL between the quotes below.
+// Leave it blank to keep running in local demo mode (data stays only in this browser tab).
+const CONFIG = { API_URL: "https://script.google.com/macros/s/AKfycbzhyq4AtW6znK0NxFRV3cbWCYIGn55zMNzm0Mkl1IwywCuYo6mrSERAMmVKwPO_h1385g/exec" };
+
+async function apiGet(action){
+  const res = await fetch(`${CONFIG.API_URL}?action=${action}`);
+  return res.json();
+}
+async function apiPost(action, payload){
+  const res = await fetch(CONFIG.API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight on Apps Script
+    body: JSON.stringify({ action, payload })
+  });
+  return res.json();
+}
+function backendConnected(){ return !!CONFIG.API_URL; }
+
+/* ============ STATE ============ */
+let state = {
+  users: {}, samples: [], requests: [], categoryTree: {},
+  currentUser: null,
+  filterFactory: "all", filterDept: null, filterCat: null,
+  navView: "gallery", selection: new Set(),
+  userEditMode: null
+};
+let pendingPhotos = [];
+let detailSampleId = null;
+let detailPhotoIndex = 0;
+
+async function loadData(){
+  if(backendConnected()){
+    try{
+      const data = await apiGet('getAll');
+      state.users = data.users || DEMO_USERS;
+      state.samples = data.samples || [];
+      state.requests = data.requests || [];
+      state.categoryTree = data.categoryTree || JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE));
+      return;
+    }catch(e){
+      alert('Could not reach the Google Sheet backend. Check your internet connection or the deployment URL. Falling back to local demo data for now.');
+    }
+  }
+  try{ const u = await window.storage.get('sst:users', true); state.users = u? JSON.parse(u.value): DEMO_USERS; }catch(e){ state.users = DEMO_USERS; }
+  try{ const s = await window.storage.get('sst:samples', true); state.samples = s? JSON.parse(s.value): seedSamples(); }catch(e){ state.samples = seedSamples(); }
+  try{ const r = await window.storage.get('sst:requests', true); state.requests = r? JSON.parse(r.value): []; }catch(e){ state.requests = []; }
+  try{ const c = await window.storage.get('sst:categories', true); state.categoryTree = c? JSON.parse(c.value): JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE)); }catch(e){ state.categoryTree = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE)); }
+}
+async function saveUsers(){
+  if(backendConnected()){ try{ await apiPost('saveUsers', state.users); }catch(e){} return; }
+  try{ await window.storage.set('sst:users', JSON.stringify(state.users), true); }catch(e){}
+}
+async function saveSamples(){
+  if(backendConnected()){ try{ await apiPost('saveSamples', state.samples); }catch(e){} return; }
+  try{ await window.storage.set('sst:samples', JSON.stringify(state.samples), true); }catch(e){}
+}
+async function saveRequests(){
+  if(backendConnected()){ try{ await apiPost('saveRequests', state.requests); }catch(e){} return; }
+  try{ await window.storage.set('sst:requests', JSON.stringify(state.requests), true); }catch(e){}
+}
+async function saveCategories(){
+  if(backendConnected()){ try{ await apiPost('saveCategories', state.categoryTree); }catch(e){} return; }
+  try{ await window.storage.set('sst:categories', JSON.stringify(state.categoryTree), true); }catch(e){}
+}
+
+
+/* ============ AUTH ============ */
+async function attemptLogin(){
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  await loadData();
+  const rec = state.users[u];
+  if(rec && rec.password === p){
+    state.currentUser = { username:u, ...rec };
+    document.getElementById('login-error').style.display='none';
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('active');
+    initShell();
+  } else {
+    document.getElementById('login-error').style.display='block';
+  }
+}
+function logout(){
+  state.currentUser = null;
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('login-screen').style.display='grid';
+  document.getElementById('login-user').value=''; document.getElementById('login-pass').value='';
+}
+function isRequester(role){ return role==='merchandiser' || role==='designer'; }
+function roleLabel(r){ return {superadmin:'Super Admin', director:'Executive Director', showroom:'Showroom Person', merchandiser:'Merchandiser', designer:'Designer'}[r] || r; }
+function displayTitle(u){ return u.title || roleLabel(u.role); }
+
+/* ============ SHELL / NAV ============ */
+function initShell(){
+  const role = state.currentUser.role;
+  document.getElementById('user-name').textContent = state.currentUser.name;
+  document.getElementById('user-role').textContent = displayTitle(state.currentUser);
+  document.getElementById('user-avatar').textContent = state.currentUser.name.split(' ').map(x=>x[0]).slice(0,2).join('');
+
+  const nav = document.getElementById('nav-primary');
+  nav.innerHTML = '';
+  let items = [];
+  if(role==='showroom' || role==='superadmin'){
+    items.push({id:'gallery', label:'Showroom gallery'});
+    items.push({id:'requests', label:'Sample requests', badge: pendingCountFor(state.currentUser)});
+  }
+  if(isRequester(role)){
+    items.push({id:'gallery', label:'Browse samples'});
+    items.push({id:'myrequests', label:'My requests'});
+  }
+  if(role==='director'){
+    items.push({id:'overview', label:'Overview'});
+    items.push({id:'gallery', label:'All samples'});
+  }
+  items.push({id:'dispatched', label:'Dispatched items'});
+  items.push({id:'activity', label:'Activity log'});
+  if(role==='superadmin'){
+    items.push({id:'users', label:'Accounts'});
+    items.push({id:'categories', label:'Categories'});
+  }
+  items.forEach(it=>{
+    const d = document.createElement('div');
+    d.className = 'nav-item' + (state.navView===it.id?' active':'');
+    d.innerHTML = `<span>${it.label}</span>` + (it.badge? `<span class="count">${it.badge}</span>`:'');
+    d.onclick = ()=>{ state.navView = it.id; render(); };
+    nav.appendChild(d);
+  });
+
+  const factoryGroup = document.getElementById('nav-factory-group');
+  const factoryList = document.getElementById('factory-list');
+  if(role==='showroom'){
+    factoryGroup.style.display='none';
+    state.filterFactory = state.currentUser.factory;
+  } else {
+    factoryGroup.style.display='block';
+    factoryList.innerHTML='';
+    const opts = ["All factories", ...FACTORIES];
+    opts.forEach(f=>{
+      const val = f==="All factories" ? "all" : f;
+      const d = document.createElement('div');
+      d.className = 'nav-item' + (state.filterFactory===val?' active':'');
+      d.textContent = f;
+      d.onclick = ()=>{ state.filterFactory = val; render(); };
+      factoryList.appendChild(d);
+    });
+  }
+
+  const tree = document.getElementById('dept-tree');
+  tree.innerHTML = '';
+  Object.keys(state.categoryTree).forEach(dept=>{
+    const dd = document.createElement('div');
+    dd.className = 'tree-dept'; dd.textContent = dept;
+    dd.onclick = ()=>{ state.filterDept = state.filterDept===dept? null: dept; state.filterCat=null; render(); };
+    tree.appendChild(dd);
+    if(state.filterDept===dept){
+      Object.keys(state.categoryTree[dept]).forEach(cat=>{
+        const cc = document.createElement('div');
+        cc.className='tree-cat' + (state.filterCat===cat?' active':'');
+        cc.textContent = cat;
+        cc.onclick = (e)=>{ e.stopPropagation(); state.filterCat = state.filterCat===cat?null:cat; render(); };
+        tree.appendChild(cc);
+      });
+    }
+  });
+
+  populateFactorySelect(document.getElementById('f-factory'));
+  populateDeptSelect(document.getElementById('f-dept'));
+  populateModalCategories();
+  populateFactorySelect(document.getElementById('u-factory'));
+  populateFactorySelect(document.getElementById('tr-factory'));
+  render();
+}
+function pendingCountFor(user){
+  if(user.role==='showroom') return state.requests.filter(r=>r.status==='pending' && r.targetFactories.includes(user.factory)).length || '';
+  if(user.role==='superadmin') return state.requests.filter(r=>r.status==='pending').length || '';
+  return '';
+}
+
+/* ============ RENDER ROUTER ============ */
+function render(){
+  const main = document.getElementById('main');
+  if(state.navView==='users'){ renderUsers(main); return; }
+  if(state.navView==='categories'){ renderCategories(main); return; }
+  if(state.navView==='requests'){ renderRequests(main); return; }
+  if(state.navView==='myrequests'){ renderMyRequests(main); return; }
+  if(state.navView==='overview'){ renderOverview(main); return; }
+  if(state.navView==='dispatched'){ renderDispatched(main); return; }
+  if(state.navView==='activity'){ renderActivity(main); return; }
+  renderGallery(main);
+}
+
+function visibleSamples(){
+  return state.samples.filter(s=>{
+    if(state.filterFactory!=='all' && s.currentLocation!==state.filterFactory) return false;
+    if(state.filterDept && s.dept!==state.filterDept) return false;
+    if(state.filterCat && s.cat!==state.filterCat) return false;
+    return true;
+  });
+}
+
+function renderGallery(main){
+  const role = state.currentUser.role;
+  const samples = visibleSamples();
+  const canAdd = role==='showroom' || role==='superadmin';
+  const canSelect = isRequester(role) || role==='showroom' || role==='superadmin';
+
+  main.innerHTML = `
+    <div class="topbar">
+      <div>
+        <h1>${state.filterDept ? (state.filterCat? state.filterDept+' — '+state.filterCat : state.filterDept) : 'Showroom gallery'}</h1>
+        <p class="sub">${role==='showroom' ? state.currentUser.factory : (state.filterFactory==='all'?'All factories':state.filterFactory)} · ${samples.length} sample${samples.length===1?'':'s'}</p>
+      </div>
+      <div class="top-actions">
+        ${role==='showroom'||role==='superadmin' ? `<div class="bell ${pendingCountFor(state.currentUser)?'has-alert':''}" onclick="state.navView='requests'; render();"><span class="dot"></span>🔔</div>` : ''}
+        ${canAdd ? `<button class="btn solid" onclick="openAddModal()">+ Add sample</button>` : ''}
+      </div>
+    </div>
+    ${role!=='merchandiser' && role!=='designer' ? statRow(samples) : ''}
+    <div class="toolbar">
+      <input type="text" id="search-box" placeholder="Search by sample code…" oninput="renderGallery(document.getElementById('main'))">
+      <select id="status-filter" onchange="renderGallery(document.getElementById('main'))">
+        <option value="all">All statuses</option>
+        <option value="instock">In showroom</option>
+        <option value="out">Checked out</option>
+      </select>
+    </div>
+    <div id="grid-holder"></div>
+  `;
+  renderGrid(samples, canAdd, canSelect);
+}
+
+function statRow(samples){
+  const inStock = samples.filter(s=>s.status==='instock').length;
+  const out = samples.filter(s=>s.status==='out').length;
+  const transferred = samples.filter(s=>s.currentLocation!==s.homeFactory).length;
+  return `<div class="stat-row">
+    <div class="stat-card"><div class="n">${samples.length}</div><div class="l">Total samples</div></div>
+    <div class="stat-card"><div class="n">${inStock}</div><div class="l">In showroom</div></div>
+    <div class="stat-card"><div class="n">${out}</div><div class="l">Checked out</div></div>
+    <div class="stat-card"><div class="n">${transferred}</div><div class="l">On inter-factory loan</div></div>
+  </div>`;
+}
+
+function renderGrid(samples, canAdd, canSelect){
+  const q = (document.getElementById('search-box')?.value || '').toLowerCase();
+  const statusF = document.getElementById('status-filter')?.value || 'all';
+  let filtered = samples.filter(s=>{
+    if(q && !s.code.toLowerCase().includes(q)) return false;
+    if(statusF!=='all' && s.status!==statusF) return false;
+    return true;
+  });
+  const holder = document.getElementById('grid-holder');
+  if(filtered.length===0){
+    holder.innerHTML = `<div class="empty"><p class="big">No samples here yet</p><p>Try a different factory, department, or search term.</p></div>`;
+    return;
+  }
+  holder.innerHTML = `<div class="grid">${filtered.map(s=>sampleCard(s, canAdd, canSelect)).join('')}</div>`;
+}
+
+function sampleCard(s, canAdd, canSelect){
+  const picked = state.selection.has(s.id);
+  const cover = s.photos[0];
+  const clickAttr = canSelect ? `onclick="toggleSelect('${s.id}')"` : `onclick="openDetail('${s.id}')"`;
+  return `
+    <div class="card ${picked?'picked':''}" ${clickAttr}>
+      ${canSelect ? `<div class="checkbox">✓</div><div class="view-link" onclick="event.stopPropagation(); openDetail('${s.id}')">⤢</div>` : ''}
+      <div class="thumb">${cover ? `<img src="${cover.data}">` : `<div class="ph">${s.subcat}</div>`}</div>
+      <div class="body">
+        <div class="code">${s.code}</div>
+        <div class="meta">${s.dept} · ${s.subcat}<br>Origin: ${s.homeFactory}</div>
+        <span class="badge ${s.status==='instock'?'instock':'out'}">${s.status==='instock'?'In showroom':'Checked out'}</span>
+        ${s.currentLocation!==s.homeFactory ? `<span class="badge loc">At ${s.currentLocation}</span>`:''}
+      </div>
+    </div>`;
+}
+
+/* ---- Selection / request flow ---- */
+function toggleSelect(id){
+  const s = state.samples.find(x=>x.id===id);
+  if(s && s.status!=='instock' && !state.selection.has(id)) return; // can't select something already checked out
+  if(state.selection.has(id)) state.selection.delete(id); else state.selection.add(id);
+  updateSelectionBar(); renderGallery(document.getElementById('main'));
+}
+function updateSelectionBar(){
+  const bar = document.getElementById('selection-bar');
+  document.getElementById('sel-count').textContent = state.selection.size;
+  bar.classList.toggle('active', state.selection.size>0);
+  const btn = document.getElementById('selection-action-btn');
+  const role = state.currentUser && state.currentUser.role;
+  if(btn) btn.textContent = isRequester(role) ? 'Send request to showroom →' : 'Hand over selected →';
+}
+function handleSelectionAction(){
+  const role = state.currentUser.role;
+  if(isRequester(role)) openRequestModal(); else openBulkHandover();
+}
+function openBulkHandover(){
+  const items = [...state.selection].map(id=>state.samples.find(s=>s.id===id));
+  document.getElementById('co-title').textContent = `Hand over ${items.length} sample${items.length===1?'':'s'}`;
+  document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
+  document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
+  document.getElementById('co-returnable').classList.add('on');
+  document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify(items.map(s=>s.id));
+  document.getElementById('modal-checkout').dataset.requestId = '';
+  openModal('modal-checkout');
+}
+function openRequestModal(){
+  const items = [...state.selection].map(id=>state.samples.find(s=>s.id===id));
+  document.getElementById('req-summary').textContent = items.map(s=>s.code).join(', ') + ` — ${items.length} sample${items.length===1?'':'s'}`;
+  document.getElementById('req-id').value=''; document.getElementById('req-destination').value='';
+  openModal('modal-request');
+}
+async function sendRequest(){
+  const idCard = document.getElementById('req-id').value.trim();
+  const destination = document.getElementById('req-destination').value.trim();
+  const reason = document.getElementById('req-reason').value;
+  if(!idCard || !destination) return alert('ID card number and destination are required.');
+  const items = [...state.selection];
+  const factories = [...new Set(items.map(id=>state.samples.find(s=>s.id===id).currentLocation))];
+  state.requests.unshift({
+    id:'r'+Date.now(), requesterName: state.currentUser.name, requesterRole: state.currentUser.role,
+    idCard, destination, reason, sampleIds: items, targetFactories: factories,
+    status:'pending', createdDate: new Date().toISOString().slice(0,10)
+  });
+  await saveRequests();
+  closeModal('modal-request'); clearSelection();
+  alert('Request sent — the showroom team has been notified.');
+  render();
+}
+function renderMyRequests(main){
+  const mine = state.requests.filter(r=>r.requesterName===state.currentUser.name);
+  main.innerHTML = `<div class="topbar"><div><h1>My requests</h1><p class="sub">Sample requests you've sent to showroom staff</p></div></div>
+  ${mine.length===0? `<div class="empty"><p class="big">No requests yet</p><p>Select samples from the gallery and send a request.</p></div>` : mine.map(r=>requestCard(r,false)).join('')}`;
+}
+function renderRequests(main){
+  const role = state.currentUser.role;
+  const list = role==='superadmin' ? state.requests : state.requests.filter(r=>r.targetFactories.includes(state.currentUser.factory));
+  main.innerHTML = `<div class="topbar"><div><h1>Sample requests</h1><p class="sub">Requests from merchandisers and designers</p></div></div>
+  ${list.length===0? `<div class="empty"><p class="big">No requests right now</p><p>You'll see requests here as they come in.</p></div>` : list.map(r=>requestCard(r,true)).join('')}`;
+}
+function requestCard(r, actionable){
+  const items = r.sampleIds.map(id=>state.samples.find(s=>s.id===id)).filter(Boolean);
+  return `<div class="req-item">
+    <div class="req-top"><b>${r.requesterName}</b><span>${r.status==='pending'?'Pending':'Fulfilled'} · ${r.createdDate}</span></div>
+    <div class="req-meta">ID: ${r.idCard} · Reason: ${r.reason} · Destination: ${r.destination}</div>
+    <div class="req-thumbs">${items.map(s=>`<div class="rt">${s.photos[0]?`<img src="${s.photos[0].data}">`:''}</div>`).join('')}</div>
+    <p style="font-size:12.5px; margin-bottom:10px;">${items.map(s=>s.code).join(', ')}</p>
+    ${actionable && r.status==='pending' ? `<button class="btn small solid" onclick="openFulfill('${r.id}')">Review &amp; hand over</button>` : ''}
+  </div>`;
+}
+let activeRequestId = null;
+function openFulfill(reqId){
+  activeRequestId = reqId;
+  const r = state.requests.find(x=>x.id===reqId);
+  document.getElementById('co-title').textContent = 'Confirm hand-over';
+  document.getElementById('co-name').value = r.requesterName;
+  document.getElementById('co-id').value = r.idCard;
+  document.getElementById('co-destination').value = r.destination;
+  document.getElementById('co-reason').value = r.reason;
+  document.getElementById('co-returnable').classList.add('on');
+  document.getElementById('modal-checkout').dataset.sampleIds = '';
+  document.getElementById('modal-checkout').dataset.requestId = reqId;
+  openModal('modal-checkout');
+}
+
+/* ---- Dispatched items (everyone) ---- */
+function renderDispatched(main){
+  const items = state.samples.filter(s=>s.status==='out');
+  main.innerHTML = `<div class="topbar"><div><h1>Dispatched items</h1><p class="sub">Every sample currently checked out, across all factories</p></div></div>
+  ${items.length===0? `<div class="empty"><p class="big">Nothing checked out right now</p></div>` :
+  `<div class="grid">${items.map(s=>`
+    <div class="card" onclick="openDetail('${s.id}')">
+      <div class="thumb">${s.photos[0]?`<img src="${s.photos[0].data}">`:`<div class="ph">${s.subcat}</div>`}</div>
+      <div class="body">
+        <div class="code">${s.code}</div>
+        <div class="meta">${s.homeFactory} · With ${s.checkout?.name||'—'}<br>${s.checkout?.destination||''} · ${s.checkout?.reason||''}</div>
+        <span class="badge out">${s.checkout?.returnable? 'Returnable':'Non-returnable'}</span>
+      </div>
+    </div>`).join('')}</div>`}`;
+}
+
+/* ---- Activity log (accountability, visible to everyone) ---- */
+function renderActivity(main){
+  let entries = [];
+  state.samples.forEach(s=>{
+    s.history.forEach(h=>{
+      entries.push({ ...h, sortKey: h.ts || Date.parse(h.date) || 0, sampleId: s.id, code: s.code, dept: s.dept, subcat: s.subcat });
+    });
+  });
+  entries.sort((a,b)=> b.sortKey - a.sortKey);
+  main.innerHTML = `<div class="topbar">
+      <div><h1>Activity log</h1><p class="sub">Every hand-over, return, and transfer, across all factories — visible to everyone for accountability</p></div>
+    </div>
+    ${entries.length===0? `<div class="empty"><p class="big">No activity yet</p></div>` :
+    entries.map(h=>`
+      <div class="hist-row" style="cursor:pointer; align-items:flex-start;" onclick="openDetail('${h.sampleId}')">
+        <span class="hd">${h.date}</span>
+        <span><b>${h.code}</b> · ${h.dept} / ${h.subcat}<br>${historyLine(h)}</span>
+      </div>`).join('')}`;
+}
+
+/* ---- Overview (director) ---- */
+function renderOverview(main){
+  const samples = state.samples;
+  main.innerHTML = `<div class="topbar"><div><h1>Overview</h1><p class="sub">Read-only view across all factories</p></div></div>
+  ${statRow(samples)}
+  <div class="grid">${FACTORIES.map(f=>{
+    const fs = samples.filter(s=>s.currentLocation===f);
+    return `<div class="stat-card"><div class="n">${fs.length}</div><div class="l">${f} — ${fs.filter(s=>s.status==='instock').length} in showroom</div></div>`;
+  }).join('')}</div>`;
+}
+
+/* ---- Users (super admin) ---- */
+function renderUsers(main){
+  const list = Object.entries(state.users);
+  main.innerHTML = `<div class="topbar">
+      <div><h1>Accounts</h1><p class="sub">${list.length} user${list.length===1?'':'s'} across all roles</p></div>
+      <button class="btn solid" onclick="openCreateUser()">+ Create account</button>
+    </div>
+    <div class="grid">${list.map(([uname,u])=>`
+      <div class="card" onclick="openEditUser('${uname}')"><div class="body">
+        <div class="code">${u.name}</div>
+        <div class="meta">@${uname}<br>${displayTitle(u)}${u.factory? ' · '+u.factory:''}</div>
+      </div></div>`).join('')}
+    </div>`;
+}
+function toggleUserFactoryField(){
+  const r = document.getElementById('u-role').value;
+  document.getElementById('u-factory-field').style.display = r==='showroom' ? 'block':'none';
+}
+function openCreateUser(){
+  state.userEditMode = null;
+  document.getElementById('user-modal-title').textContent = 'Create account';
+  document.getElementById('u-name').value=''; document.getElementById('u-user').value='';
+  document.getElementById('u-pass').value=''; document.getElementById('u-title').value='';
+  document.getElementById('u-role').value='showroom';
+  toggleUserFactoryField();
+  openModal('modal-user');
+}
+function openEditUser(uname){
+  const u = state.users[uname];
+  state.userEditMode = uname;
+  document.getElementById('user-modal-title').textContent = 'Edit account';
+  document.getElementById('u-name').value = u.name;
+  document.getElementById('u-user').value = uname;
+  document.getElementById('u-pass').value = u.password;
+  document.getElementById('u-role').value = u.role;
+  document.getElementById('u-title').value = u.title || '';
+  if(u.factory) document.getElementById('u-factory').value = u.factory;
+  toggleUserFactoryField();
+  openModal('modal-user');
+}
+async function saveUser(){
+  const newUname = document.getElementById('u-user').value.trim();
+  if(!newUname) return alert('Username is required.');
+  const role = document.getElementById('u-role').value;
+  const record = {
+    name: document.getElementById('u-name').value.trim() || newUname,
+    password: document.getElementById('u-pass').value || 'changeme',
+    role,
+    factory: role==='showroom' ? document.getElementById('u-factory').value : undefined,
+    title: document.getElementById('u-title').value.trim() || undefined
+  };
+  if(state.userEditMode && state.userEditMode !== newUname){ delete state.users[state.userEditMode]; }
+  state.users[newUname] = record;
+  await saveUsers();
+  closeModal('modal-user');
+  render();
+}
+
+/* ---- Categories (super admin) ---- */
+function renderCategories(main){
+  const tree = state.categoryTree;
+  main.innerHTML = `<div class="topbar"><div><h1>Categories</h1><p class="sub">Manage departments, categories, and styles</p></div></div>
+    <div class="mini-add"><input type="text" id="new-dept" placeholder="New department name"><button onclick="addDept()">+ Add department</button></div>
+    ${Object.keys(tree).map(dept=>`
+      <div class="cat-dept-block">
+        <h4>${dept} <span class="x-link" onclick="removeDept('${escAttr(dept)}')">Remove department</span></h4>
+        ${Object.keys(tree[dept]).map(cat=>`
+          <div class="cat-cat-row">
+            <div class="cc-head"><span>${cat}</span><span class="x-link" onclick="removeCat('${escAttr(dept)}','${escAttr(cat)}')">Remove</span></div>
+            <div class="chip-list">${tree[dept][cat].map(sc=>`<div class="chip">${sc}<span class="x" onclick="removeSubcat('${escAttr(dept)}','${escAttr(cat)}','${escAttr(sc)}')">×</span></div>`).join('')}</div>
+            <div class="mini-add"><input type="text" id="ns-${slug(dept)}-${slug(cat)}" placeholder="New style"><button onclick="addSubcat('${escAttr(dept)}','${escAttr(cat)}')">+ Add style</button></div>
+          </div>`).join('')}
+        <div class="mini-add"><input type="text" id="nc-${slug(dept)}" placeholder="New category (e.g. Outerwear)"><button onclick="addCat('${escAttr(dept)}')">+ Add category</button></div>
+      </div>`).join('')}
+  `;
+}
+function slug(s){ return s.replace(/[^a-z0-9]/gi,''); }
+function escAttr(s){ return s.replace(/'/g,"\\'"); }
+async function addDept(){
+  const v = document.getElementById('new-dept').value.trim();
+  if(!v) return;
+  state.categoryTree[v] = {}; await saveCategories(); render();
+}
+async function removeDept(d){
+  if(!confirm(`Remove department "${d}"? This will not delete existing samples.`)) return;
+  delete state.categoryTree[d]; await saveCategories(); render();
+}
+async function addCat(d){
+  const el = document.getElementById(`nc-${slug(d)}`); const v = el.value.trim();
+  if(!v) return;
+  state.categoryTree[d][v] = []; await saveCategories(); render();
+}
+async function removeCat(d,c){
+  delete state.categoryTree[d][c]; await saveCategories(); render();
+}
+async function addSubcat(d,c){
+  const el = document.getElementById(`ns-${slug(d)}-${slug(c)}`); const v = el.value.trim();
+  if(!v) return;
+  state.categoryTree[d][c].push(v); await saveCategories(); render();
+}
+async function removeSubcat(d,c,sc){
+  state.categoryTree[d][c] = state.categoryTree[d][c].filter(x=>x!==sc);
+  await saveCategories(); render();
+}
+
+/* ============ ADD SAMPLE MODAL ============ */
+function populateFactorySelect(sel){ sel.innerHTML = FACTORIES.map(f=>`<option value="${f}">${f}</option>`).join(''); }
+function populateDeptSelect(sel){ sel.innerHTML = Object.keys(state.categoryTree).map(d=>`<option value="${d}">${d}</option>`).join(''); }
+function populateModalCategories(){
+  const dept = document.getElementById('f-dept').value;
+  const catSel = document.getElementById('f-cat');
+  const cats = state.categoryTree[dept] || {};
+  catSel.innerHTML = Object.keys(cats).map(c=>`<option value="${c}">${c}</option>`).join('');
+  populateModalSubcats();
+}
+function populateModalSubcats(){
+  const dept = document.getElementById('f-dept').value;
+  const cat = document.getElementById('f-cat').value;
+  const subSel = document.getElementById('f-subcat');
+  const subs = (state.categoryTree[dept] && state.categoryTree[dept][cat]) || [];
+  subSel.innerHTML = subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+}
+function renderPhotoStrip(){
+  const strip = document.getElementById('photo-strip');
+  strip.innerHTML = pendingPhotos.map((p,i)=>`
+    <div class="photo-tile">
+      <img src="${p.data}">
+      <div class="lbl">${p.uploading? 'Uploading…' : p.label}</div>
+      <div class="rm" onclick="removePendingPhoto(${i})">×</div>
+    </div>`).join('') + `<div class="photo-add" onclick="document.getElementById('photo-input').click()"><span style="font-size:20px;">＋</span>Add photo</div>`;
+}
+function removePendingPhoto(i){ pendingPhotos.splice(i,1); renderPhotoStrip(); }
+function compressToDataUrl(file){
+  return new Promise((resolve)=>{
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const canvas = document.createElement('canvas');
+        const maxDim = 640;
+        let w = img.width, h = img.height;
+        if(w>h && w>maxDim){ h = h*maxDim/w; w=maxDim; } else if(h>maxDim){ w = w*maxDim/h; h=maxDim; }
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg', 0.72));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+async function handlePhotoUpload(e){
+  const files = [...e.target.files];
+  e.target.value = '';
+  for(const file of files){
+    const dataUrl = await compressToDataUrl(file);
+    const label = PHOTO_LABELS[pendingPhotos.length] || 'Extra';
+    const tempId = 'p'+Date.now()+Math.random();
+    pendingPhotos.push({ id: tempId, label, data: dataUrl, uploading: backendConnected() });
+    renderPhotoStrip();
+    if(backendConnected()){
+      try{
+        const codeVal = document.getElementById('f-code').value.trim() || 'sample';
+        const filename = `${codeVal}-${label}-${Date.now()}.jpg`;
+        const result = await apiPost('uploadPhoto', { dataUrl, filename });
+        const p = pendingPhotos.find(x=>x.id===tempId);
+        if(p && result && result.url){ p.data = result.url; p.uploading = false; }
+      }catch(err){ /* keep local preview if upload fails */ }
+      renderPhotoStrip();
+    }
+  }
+}
+function openAddModal(){
+  pendingPhotos = [];
+  renderPhotoStrip();
+  document.getElementById('f-code').value='';
+  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  if(state.currentUser.role==='showroom'){ document.getElementById('f-factory').value = state.currentUser.factory; }
+  openModal('modal-add');
+}
+async function saveSample(){
+  const code = document.getElementById('f-code').value.trim();
+  if(!code) return alert('Sample code is required.');
+  const factory = document.getElementById('f-factory').value;
+  const date = document.getElementById('f-date').value || new Date().toISOString().slice(0,10);
+  const s = {
+    id: 's'+Date.now(), code,
+    dept: document.getElementById('f-dept').value,
+    cat: document.getElementById('f-cat').value,
+    subcat: document.getElementById('f-subcat').value,
+    homeFactory: factory, currentLocation: factory,
+    photos: pendingPhotos, status:'instock', checkout:null,
+    enteredBy: state.currentUser.name, enteredDate: date,
+    history: [{type:'entry', date, ts: Date.now(), by: state.currentUser.name, factory}]
+  };
+  state.samples.unshift(s);
+  await saveSamples();
+  closeModal('modal-add');
+  render();
+}
+
+/* ============ CHECKOUT / RETURN / TRANSFER ============ */
+async function confirmCheckout(){
+  const name = document.getElementById('co-name').value.trim();
+  const idCard = document.getElementById('co-id').value.trim();
+  const destination = document.getElementById('co-destination').value.trim();
+  const reason = document.getElementById('co-reason').value;
+  const returnable = document.getElementById('co-returnable').classList.contains('on');
+  if(!name || !idCard || !destination) return alert('Name, ID card number, and destination are required.');
+  const today = new Date().toISOString().slice(0,10);
+  const now = Date.now();
+  const modal = document.getElementById('modal-checkout');
+  const reqId = modal.dataset.requestId;
+  const batchIds = modal.dataset.sampleIds ? JSON.parse(modal.dataset.sampleIds) : [];
+
+  const applyCheckout = (s)=>{
+    s.status = 'out';
+    s.checkout = { name, idCard, destination, reason, returnable, date: today, processedBy: state.currentUser.name };
+    s.history.push({type:'checkout', date: today, ts: now, by: state.currentUser.name, name, idCard, destination, reason, returnable});
+  };
+
+  if(reqId){
+    const r = state.requests.find(x=>x.id===reqId);
+    r.status='fulfilled';
+    r.sampleIds.forEach(sid=>{ const s = state.samples.find(x=>x.id===sid); if(s) applyCheckout(s); });
+    await saveRequests();
+  } else if(batchIds.length){
+    batchIds.forEach(sid=>{ const s = state.samples.find(x=>x.id===sid); if(s) applyCheckout(s); });
+  }
+  await saveSamples();
+  modal.dataset.requestId=''; modal.dataset.sampleIds='';
+  closeModal('modal-checkout');
+  state.selection.clear(); updateSelectionBar();
+  if(document.getElementById('modal-detail').classList.contains('active') && detailSampleId) openDetail(detailSampleId);
+  render();
+}
+function openDirectCheckout(sampleId){
+  document.getElementById('co-title').textContent = 'Hand over sample';
+  document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
+  document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
+  document.getElementById('co-returnable').classList.add('on');
+  document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify([sampleId]);
+  document.getElementById('modal-checkout').dataset.requestId = '';
+  openModal('modal-checkout');
+}
+async function markReturned(sampleId){
+  const s = state.samples.find(x=>x.id===sampleId);
+  if(!s.checkout || !s.checkout.returnable) return;
+  const today = new Date().toISOString().slice(0,10);
+  s.history.push({type:'return', date: today, ts: Date.now(), by: state.currentUser.name});
+  s.status = 'instock'; s.checkout = null;
+  await saveSamples();
+  openDetail(sampleId); render();
+}
+function openTransferModal(sampleId){
+  document.getElementById('modal-transfer').dataset.sampleId = sampleId;
+  openModal('modal-transfer');
+}
+async function confirmTransfer(){
+  const sampleId = document.getElementById('modal-transfer').dataset.sampleId;
+  const to = document.getElementById('tr-factory').value;
+  const s = state.samples.find(x=>x.id===sampleId);
+  if(to === s.currentLocation) return alert('Choose a different factory.');
+  const today = new Date().toISOString().slice(0,10);
+  s.history.push({type:'transfer', date: today, ts: Date.now(), by: state.currentUser.name, from: s.currentLocation, to});
+  s.currentLocation = to;
+  await saveSamples();
+  closeModal('modal-transfer');
+  openDetail(sampleId); render();
+}
+async function returnFromTransfer(sampleId){
+  const s = state.samples.find(x=>x.id===sampleId);
+  const today = new Date().toISOString().slice(0,10);
+  s.history.push({type:'transfer-return', date: today, ts: Date.now(), by: state.currentUser.name, from: s.currentLocation, to: s.homeFactory});
+  s.currentLocation = s.homeFactory;
+  await saveSamples();
+  openDetail(sampleId); render();
+}
+
+/* ============ PRODUCT DETAIL ============ */
+function openDetail(id){
+  detailSampleId = id; detailPhotoIndex = 0;
+  renderDetail();
+  openModal('modal-detail');
+}
+function renderDetail(){
+  const s = state.samples.find(x=>x.id===detailSampleId);
+  if(!s) return;
+  const role = state.currentUser.role;
+  document.getElementById('dt-code').textContent = s.code;
+  document.getElementById('dt-path').textContent = `${s.dept} → ${s.cat} → ${s.subcat}`;
+
+  const photo = s.photos[detailPhotoIndex];
+  document.getElementById('dt-main').innerHTML = photo ? `<img src="${photo.data}">` : `<div class="ph" style="font-size:13px;">No photo uploaded</div>`;
+  document.getElementById('dt-thumbs').innerHTML = s.photos.map((p,i)=>`<div class="dt ${i===detailPhotoIndex?'active':''}" onclick="detailPhotoIndex=${i}; renderDetail();"><img src="${p.data}"></div>`).join('');
+
+  document.getElementById('dt-badges').innerHTML = `
+    <span class="badge ${s.status==='instock'?'instock':'out'}">${s.status==='instock'?'In showroom':'Checked out'}</span>
+    ${s.currentLocation!==s.homeFactory? `<span class="badge loc">At ${s.currentLocation}</span>`:''}
+    ${s.checkout ? `<span class="badge nr">${s.checkout.returnable?'Returnable':'Non-returnable'}</span>` : ''}`;
+
+  let facts = [
+    ['Origin factory', s.homeFactory],
+    ['Current location', s.currentLocation],
+    ['Entered by', s.enteredBy],
+    ['Entry date', s.enteredDate]
+  ];
+  if(s.checkout){
+    facts.push(['Held by', s.checkout.name + ' (ID ' + s.checkout.idCard + ')']);
+    facts.push(['Destination', s.checkout.destination]);
+    facts.push(['Reason', s.checkout.reason]);
+    facts.push(['Handed over by', s.checkout.processedBy]);
+  }
+  document.getElementById('dt-facts').innerHTML = facts.map(f=>`<div class="f"><span>${f[0]}</span><span>${f[1]}</span></div>`).join('');
+
+  const canAct = role==='showroom' || role==='superadmin';
+  let actions = '';
+  if(canAct){
+    if(s.status==='instock'){
+      actions += `<button class="btn small solid" onclick="openDirectCheckout('${s.id}')">Hand over sample</button>`;
+      actions += `<button class="btn small" onclick="openTransferModal('${s.id}')">Transfer to another factory</button>`;
+      if(s.currentLocation!==s.homeFactory){
+        actions += `<button class="btn small" onclick="returnFromTransfer('${s.id}')">Return to ${s.homeFactory}</button>`;
+      }
+    } else {
+      if(s.checkout && s.checkout.returnable){
+        actions += `<button class="btn small solid" onclick="markReturned('${s.id}')">Mark returned</button>`;
+      } else {
+        actions += `<span style="font-size:12px; color:var(--muted);">Non-returnable — permanently with buyer/holder.</span>`;
+      }
+    }
+  }
+  document.getElementById('dt-actions').innerHTML = actions;
+
+  const hist = [...s.history].reverse();
+  document.getElementById('dt-history').innerHTML = hist.map(h=>`<div class="hist-row"><span class="hd">${h.date}</span><span>${historyLine(h)}</span></div>`).join('') || `<p style="font-size:12.5px; color:var(--muted);">No history yet.</p>`;
+}
+function historyLine(h){
+  if(h.type==='entry') return `Entered showroom at ${h.factory} by ${h.by}`;
+  if(h.type==='checkout') return `Handed to ${h.name} (ID ${h.idCard}) for ${h.reason.toLowerCase()} at ${h.destination} — ${h.returnable?'returnable':'non-returnable'}. Processed by ${h.by}.`;
+  if(h.type==='return') return `Returned to showroom, confirmed by ${h.by}`;
+  if(h.type==='transfer') return `Transferred from ${h.from} to ${h.to} for showcase, by ${h.by}`;
+  if(h.type==='transfer-return') return `Sent back from ${h.from} to home factory ${h.to}, by ${h.by}`;
+  return '';
+}
+function printHistory(){
+  const s = state.samples.find(x=>x.id===detailSampleId);
+  if(!s) return;
+  const w = window.open('', '_blank');
+  const rows = [...s.history].map(h=>`<tr><td style="padding:6px 10px; border-bottom:1px solid #ddd;">${h.date}</td><td style="padding:6px 10px; border-bottom:1px solid #ddd;">${historyLine(h)}</td></tr>`).join('');
+  w.document.write(`
+    <html><head><title>${s.code} — History</title></head>
+    <body style="font-family:Arial,sans-serif; padding:30px;">
+      <h2>${s.code} — ${s.dept} / ${s.cat} / ${s.subcat}</h2>
+      <p>Origin factory: ${s.homeFactory} &nbsp;|&nbsp; Current location: ${s.currentLocation} &nbsp;|&nbsp; Entered: ${s.enteredDate} by ${s.enteredBy}</p>
+      <table style="border-collapse:collapse; width:100%; margin-top:16px;">
+        <thead><tr><th style="text-align:left; padding:6px 10px; border-bottom:2px solid #333;">Date</th><th style="text-align:left; padding:6px 10px; border-bottom:2px solid #333;">Event</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </body></html>`);
+  w.document.close();
+  w.print();
+}
+
+/* ============ MODAL HELPERS ============ */
+function openModal(id){ document.getElementById(id).classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+
+document.getElementById('login-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') attemptLogin(); });
+</script>
+</body>
+</html>
