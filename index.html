@@ -431,14 +431,17 @@
         <div class="field"><label>Quantity (pieces)</label><input type="number" id="f-qty" min="1" value="1"></div>
       </div>
       <div class="row2">
+        <div class="field"><label>Buyer / Brand (optional)</label><input type="text" id="f-buyer" placeholder="e.g. H&amp;M"></div>
         <div class="field"><label>Entry date</label><input type="date" id="f-date"></div>
-        <div class="field"><label>Factory (source)</label><select id="f-factory"></select></div>
       </div>
       <div class="row2">
+        <div class="field"><label>Factory (source)</label><select id="f-factory"></select></div>
         <div class="field"><label>Department</label><select id="f-dept" onchange="populateModalCategories()"></select></div>
-        <div class="field"><label>Category</label><select id="f-cat" onchange="populateModalSubcats()"></select></div>
       </div>
-      <div class="field"><label>Style</label><select id="f-subcat"></select></div>
+      <div class="row2">
+        <div class="field"><label>Category</label><select id="f-cat" onchange="populateModalSubcats()"></select></div>
+        <div class="field"><label>Style</label><select id="f-subcat"></select></div>
+      </div>
     </div>
     <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="saveSample()">Save to showroom</button></div>
   </div>
@@ -905,7 +908,7 @@ function renderGrid(samples, canAdd, canSelect){
   const statusF = document.getElementById('status-filter')?.value || 'all';
   let filtered = samples.filter(s=>{
     if(q){
-      const haystack = [s.code, s.subcat, s.cat, s.dept, s.homeFactory, ...(s.checkouts||[]).map(c=>c.buyer)]
+      const haystack = [s.code, s.subcat, s.cat, s.dept, s.homeFactory, s.buyer, ...(s.checkouts||[]).map(c=>c.buyer)]
         .filter(Boolean).join(' ').toLowerCase();
       if(!haystack.includes(q)) return false;
     }
@@ -935,7 +938,7 @@ function sampleCard(s, canAdd, canSelect){
       <div class="thumb">${cover ? `<img src="${cover.data}">` : `<div class="ph">${s.subcat}</div>`}</div>
       <div class="body">
         <div class="code">${s.code}</div>
-        <div class="meta">${s.dept} · ${s.subcat}<br>Origin: ${s.homeFactory}</div>
+        <div class="meta">${s.dept} · ${s.subcat}<br>Origin: ${s.homeFactory}${s.buyer? ' · '+s.buyer:''}</div>
         <span class="badge ${avail>0?'instock':'out'}">${avail>0? (s.qty>1? `${avail} of ${s.qty} available` : 'In showroom') : 'Checked out'}</span>
         ${s.currentLocation!==s.homeFactory ? `<span class="badge loc">At ${s.currentLocation}</span>`:''}
       </div>
@@ -977,7 +980,7 @@ function openBulkHandover(){
   renderCheckoutItems(items);
   document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
   document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
-  document.getElementById('co-buyer').value=''; document.getElementById('co-email').value='';
+  document.getElementById('co-buyer').value= items.length===1 ? (items[0].buyer||'') : ''; document.getElementById('co-email').value='';
   document.getElementById('co-returnable').classList.add('on');
   document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify(items.map(s=>s.id));
   document.getElementById('modal-checkout').dataset.requestId = '';
@@ -1290,6 +1293,7 @@ function openAddModal(){
   renderPhotoStrip();
   document.getElementById('f-code').value='';
   document.getElementById('f-qty').value='1';
+  document.getElementById('f-buyer').value='';
   document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
   if(state.currentUser.role==='showroom'){ document.getElementById('f-factory').value = state.currentUser.factory; }
   openModal('modal-add');
@@ -1302,6 +1306,7 @@ async function saveSample(){
   const s = {
     id: 's'+Date.now(), code,
     qty: Math.max(parseInt(document.getElementById('f-qty').value)||1, 1),
+    buyer: document.getElementById('f-buyer').value.trim(),
     dept: document.getElementById('f-dept').value,
     cat: document.getElementById('f-cat').value,
     subcat: document.getElementById('f-subcat').value,
@@ -1396,7 +1401,7 @@ function openDirectCheckout(sampleId){
   renderCheckoutItems([s]);
   document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
   document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
-  document.getElementById('co-buyer').value=''; document.getElementById('co-email').value='';
+  document.getElementById('co-buyer').value = s.buyer||''; document.getElementById('co-email').value='';
   document.getElementById('co-returnable').classList.add('on');
   document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify([sampleId]);
   document.getElementById('modal-checkout').dataset.requestId = '';
@@ -1460,6 +1465,7 @@ function renderDetail(){
     ${s.currentLocation!==s.homeFactory? `<span class="badge loc">At ${s.currentLocation}</span>`:''}`;
 
   let facts = [
+    ['Buyer / Brand', s.buyer || '—'],
     ['Quantity', s.qty||1],
     ['Origin factory', s.homeFactory],
     ['Current location', s.currentLocation],
