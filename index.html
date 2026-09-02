@@ -187,6 +187,12 @@
   .photo-add{ width:84px; height:84px; border:1.5px dashed var(--line); border-radius:2px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer; color:var(--muted); font-size:11px; gap:4px;}
   .photo-add:hover{ border-color:var(--red); color:var(--red); }
 
+  .co-item-row{ display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:12.5px; gap:10px; }
+  .co-item-row .ci-name{ flex:1; }
+  .co-item-row .ci-name b{ font-size:13px; }
+  .co-item-row .ci-name span{ display:block; color:var(--muted); font-size:11px; margin-top:2px; }
+  .co-item-row input[type=number]{ width:64px; padding:8px 10px; border:1px solid var(--line); border-radius:2px; font-size:13px; text-align:center; }
+
   .req-item{ border:1px solid var(--line); padding:16px 18px; margin-bottom:12px; border-radius:2px; }
   .req-item .req-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
   .req-item .req-top b{ font-size:13.5px; }
@@ -422,16 +428,17 @@
       <input type="file" id="photo-input" accept="image/*" multiple class="hidden" onchange="handlePhotoUpload(event)">
       <div class="row2">
         <div class="field"><label>Sample code</label><input type="text" id="f-code" placeholder="e.g. SG-MB-0231"></div>
+        <div class="field"><label>Quantity (pieces)</label><input type="number" id="f-qty" min="1" value="1"></div>
+      </div>
+      <div class="row2">
         <div class="field"><label>Entry date</label><input type="date" id="f-date"></div>
-      </div>
-      <div class="row2">
         <div class="field"><label>Factory (source)</label><select id="f-factory"></select></div>
-        <div class="field"><label>Department</label><select id="f-dept" onchange="populateModalCategories()"></select></div>
       </div>
       <div class="row2">
+        <div class="field"><label>Department</label><select id="f-dept" onchange="populateModalCategories()"></select></div>
         <div class="field"><label>Category</label><select id="f-cat" onchange="populateModalSubcats()"></select></div>
-        <div class="field"><label>Style</label><select id="f-subcat"></select></div>
       </div>
+      <div class="field"><label>Style</label><select id="f-subcat"></select></div>
     </div>
     <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="saveSample()">Save to showroom</button></div>
   </div>
@@ -450,6 +457,7 @@
         </div>
       </div>
       <div class="field"><label>Where are you taking these?</label><input type="text" id="req-destination" placeholder="e.g. Buyer office, Gulshan"></div>
+      <div class="field"><label>Buyer (optional)</label><input type="text" id="req-buyer" placeholder="e.g. H&amp;M"></div>
     </div>
     <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="sendRequest()">Notify showroom staff</button></div>
   </div>
@@ -460,16 +468,20 @@
   <div class="modal">
     <div class="modal-head"><h3 id="co-title">Hand over sample</h3><span class="modal-close" onclick="closeModal('modal-checkout')">&times;</span></div>
     <div class="modal-body">
-      <div class="row2">
+      <div class="section-label" style="margin-top:0;">Items &amp; quantity</div>
+      <div id="co-items"></div>
+      <div class="row2" style="margin-top:6px;">
         <div class="field"><label>Name</label><input type="text" id="co-name" placeholder="Full name"></div>
         <div class="field"><label>ID card number</label><input type="text" id="co-id" placeholder="e.g. SG-0452"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Taking it to (destination)</label><input type="text" id="co-destination" placeholder="e.g. Buyer office"></div>
+        <div class="field"><label>Buyer (optional)</label><input type="text" id="co-buyer" placeholder="e.g. H&amp;M"></div>
         <div class="field"><label>Reason</label>
           <select id="co-reason"><option>Development</option><option>Design</option><option>Meeting</option><option>Gift</option><option>Other</option></select>
         </div>
       </div>
+      <div class="field"><label>Taking it to (destination)</label><input type="text" id="co-destination" placeholder="e.g. Buyer office"></div>
+      <div class="field"><label>Merchandiser email — for proof sheet (optional)</label><input type="text" id="co-email" placeholder="name@company.com"></div>
       <div class="toggle-row">
         <span>Returnable — must come back</span>
         <div class="switch on" id="co-returnable" onclick="this.classList.toggle('on')"></div>
@@ -580,18 +592,22 @@ const DEMO_USERS = {
 };
 
 function seedSamples(){
-  const mk = (id,code,dept,cat,subcat,factory,date)=>({
-    id, code, dept, cat, subcat, homeFactory:factory, currentLocation:factory,
-    photos:[], status:'instock', checkout:null,
+  const mk = (id,code,dept,cat,subcat,factory,date,qty)=>({
+    id, code, dept, cat, subcat, qty: qty||1, homeFactory:factory, currentLocation:factory,
+    photos:[], checkouts:[],
     enteredBy:'System', enteredDate:date,
-    history:[{type:'entry', date, by:'System', factory}]
+    history:[{type:'entry', date, ts:Date.now(), by:'System', factory}]
   });
   return [
-    mk("s1","SG-MB-0231","Men's","Bottoms","Chino Pants","CET","2026-08-20"),
-    mk("s2","SG-MT-0114","Men's","Tops","Polo Shirts","CET","2026-08-18"),
-    mk("s3","SG-KB-0055","Kids'","Bottoms","Joggers","ITSL","2026-08-10"),
-    mk("s4","SG-MB-0245","Men's","Bottoms","Shorts","CET","2026-08-28")
+    mk("s1","SG-MB-0231","Men's","Bottoms","Chino Pants","CET","2026-08-20",3),
+    mk("s2","SG-MT-0114","Men's","Tops","Polo Shirts","CET","2026-08-18",1),
+    mk("s3","SG-KB-0055","Kids'","Bottoms","Joggers","ITSL","2026-08-10",2),
+    mk("s4","SG-MB-0245","Men's","Bottoms","Shorts","CET","2026-08-28",1)
   ];
+}
+function availableQty(s){
+  const taken = (s.checkouts||[]).reduce((sum,c)=>sum+(c.qty||1),0);
+  return Math.max((s.qty||1) - taken, 0);
 }
 
 /* ============ BACKEND CONFIG ============ */
@@ -601,17 +617,40 @@ const CONFIG = { API_URL: "https://script.google.com/macros/s/AKfycbzhyq4AtW6znK
 
 async function apiGet(action){
   const res = await fetch(`${CONFIG.API_URL}?action=${action}`);
-  return res.json();
+  const text = await res.text();
+  try{ return JSON.parse(text); }
+  catch(e){ throw new Error('Backend did not return JSON (check Apps Script deployment). Raw response: ' + text.slice(0,200)); }
 }
 async function apiPost(action, payload){
+  // No custom headers here on purpose — letting the browser set the default
+  // text/plain content type keeps this a "simple" request with no CORS preflight,
+  // which Apps Script Web Apps often fail silently.
   const res = await fetch(CONFIG.API_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoids CORS preflight on Apps Script
     body: JSON.stringify({ action, payload })
   });
-  return res.json();
+  const text = await res.text();
+  let data;
+  try{ data = JSON.parse(text); }
+  catch(e){ throw new Error('Backend did not return JSON for "'+action+'". Raw response: ' + text.slice(0,200)); }
+  if(data && data.error) throw new Error(data.error);
+  return data;
 }
 function backendConnected(){ return !!CONFIG.API_URL; }
+function toast(msg, type){
+  let t = document.getElementById('sst-toast');
+  if(!t){
+    t = document.createElement('div'); t.id='sst-toast';
+    t.style.cssText = 'position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:999; padding:13px 20px; border-radius:3px; font-size:13px; font-family:Inter,sans-serif; box-shadow:0 10px 30px rgba(0,0,0,0.25); max-width:520px; text-align:center;';
+    document.body.appendChild(t);
+  }
+  t.style.background = type==='error' ? '#9E1B24' : '#221B19';
+  t.style.color = '#fff';
+  t.textContent = msg;
+  t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.style.display='none'; }, type==='error' ? 7000 : 3500);
+}
 
 /* ============ STATE ============ */
 let state = {
@@ -644,24 +683,40 @@ async function loadData(){
   try{ const c = await window.storage.get('sst:categories', true); state.categoryTree = c? JSON.parse(c.value): JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE)); }catch(e){ state.categoryTree = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE)); }
 }
 async function saveUsers(){
-  if(backendConnected()){ try{ await apiPost('saveUsers', state.users); }catch(e){} return; }
+  if(backendConnected()){ try{ await apiPost('saveUsers', state.users); }catch(e){ toast('Could not save accounts to Google Sheet: '+e.message, 'error'); } return; }
   try{ await window.storage.set('sst:users', JSON.stringify(state.users), true); }catch(e){}
 }
 async function saveSamples(){
-  if(backendConnected()){ try{ await apiPost('saveSamples', state.samples); }catch(e){} return; }
+  if(backendConnected()){ try{ await apiPost('saveSamples', state.samples); }catch(e){ toast('Could not save samples to Google Sheet: '+e.message, 'error'); } return; }
   try{ await window.storage.set('sst:samples', JSON.stringify(state.samples), true); }catch(e){}
 }
 async function saveRequests(){
-  if(backendConnected()){ try{ await apiPost('saveRequests', state.requests); }catch(e){} return; }
+  if(backendConnected()){ try{ await apiPost('saveRequests', state.requests); }catch(e){ toast('Could not save requests to Google Sheet: '+e.message, 'error'); } return; }
   try{ await window.storage.set('sst:requests', JSON.stringify(state.requests), true); }catch(e){}
 }
 async function saveCategories(){
-  if(backendConnected()){ try{ await apiPost('saveCategories', state.categoryTree); }catch(e){} return; }
+  if(backendConnected()){ try{ await apiPost('saveCategories', state.categoryTree); }catch(e){ toast('Could not save categories to Google Sheet: '+e.message, 'error'); } return; }
   try{ await window.storage.set('sst:categories', JSON.stringify(state.categoryTree), true); }catch(e){}
 }
 
 
 /* ============ AUTH ============ */
+function rememberSession(u){ try{ localStorage.setItem('sst:loggedInUser', u); }catch(e){} }
+function forgetSession(){ try{ localStorage.removeItem('sst:loggedInUser'); }catch(e){} }
+function getRememberedSession(){ try{ return localStorage.getItem('sst:loggedInUser'); }catch(e){ return null; } }
+
+async function initApp(){
+  await loadData();
+  const saved = getRememberedSession();
+  if(saved && state.users[saved]){
+    state.currentUser = { username: saved, ...state.users[saved] };
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').classList.add('active');
+    initShell();
+  }
+}
+window.addEventListener('DOMContentLoaded', initApp);
+
 async function attemptLogin(){
   const u = document.getElementById('login-user').value.trim();
   const p = document.getElementById('login-pass').value;
@@ -669,6 +724,7 @@ async function attemptLogin(){
   const rec = state.users[u];
   if(rec && rec.password === p){
     state.currentUser = { username:u, ...rec };
+    rememberSession(u);
     document.getElementById('login-error').style.display='none';
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').classList.add('active');
@@ -679,6 +735,7 @@ async function attemptLogin(){
 }
 function logout(){
   state.currentUser = null;
+  forgetSession();
   document.getElementById('app').classList.remove('active');
   document.getElementById('login-screen').style.display='grid';
   document.getElementById('login-user').value=''; document.getElementById('login-pass').value='';
@@ -710,6 +767,7 @@ function initShell(){
     items.push({id:'gallery', label:'All samples'});
   }
   items.push({id:'dispatched', label:'Dispatched items'});
+  items.push({id:'photowall', label:'All department photos'});
   items.push({id:'activity', label:'Activity log'});
   if(role==='superadmin'){
     items.push({id:'users', label:'Accounts'});
@@ -782,6 +840,7 @@ function render(){
   if(state.navView==='myrequests'){ renderMyRequests(main); return; }
   if(state.navView==='overview'){ renderOverview(main); return; }
   if(state.navView==='dispatched'){ renderDispatched(main); return; }
+  if(state.navView==='photowall'){ renderPhotoWall(main); return; }
   if(state.navView==='activity'){ renderActivity(main); return; }
   renderGallery(main);
 }
@@ -827,23 +886,28 @@ function renderGallery(main){
 }
 
 function statRow(samples){
-  const inStock = samples.filter(s=>s.status==='instock').length;
-  const out = samples.filter(s=>s.status==='out').length;
+  const inStock = samples.filter(s=>availableQty(s)>0).length;
+  const out = samples.filter(s=>availableQty(s)<=0).length;
   const transferred = samples.filter(s=>s.currentLocation!==s.homeFactory).length;
   return `<div class="stat-row">
     <div class="stat-card"><div class="n">${samples.length}</div><div class="l">Total samples</div></div>
     <div class="stat-card"><div class="n">${inStock}</div><div class="l">In showroom</div></div>
-    <div class="stat-card"><div class="n">${out}</div><div class="l">Checked out</div></div>
+    <div class="stat-card"><div class="n">${out}</div><div class="l">Fully checked out</div></div>
     <div class="stat-card"><div class="n">${transferred}</div><div class="l">On inter-factory loan</div></div>
   </div>`;
 }
 
 function renderGrid(samples, canAdd, canSelect){
+  const role = state.currentUser.role;
   const q = (document.getElementById('search-box')?.value || '').toLowerCase();
   const statusF = document.getElementById('status-filter')?.value || 'all';
   let filtered = samples.filter(s=>{
     if(q && !s.code.toLowerCase().includes(q)) return false;
-    if(statusF!=='all' && s.status!==statusF) return false;
+    const avail = availableQty(s);
+    if(statusF==='instock' && avail<=0) return false;
+    if(statusF==='out' && avail>0) return false;
+    // requesters (merchandiser/designer) never see fully-unavailable samples in the browse gallery
+    if(isRequester(role) && avail<=0) return false;
     return true;
   });
   const holder = document.getElementById('grid-holder');
@@ -857,6 +921,7 @@ function renderGrid(samples, canAdd, canSelect){
 function sampleCard(s, canAdd, canSelect){
   const picked = state.selection.has(s.id);
   const cover = s.photos[0];
+  const avail = availableQty(s);
   const clickAttr = canSelect ? `onclick="toggleSelect('${s.id}')"` : `onclick="openDetail('${s.id}')"`;
   return `
     <div class="card ${picked?'picked':''}" ${clickAttr}>
@@ -865,7 +930,7 @@ function sampleCard(s, canAdd, canSelect){
       <div class="body">
         <div class="code">${s.code}</div>
         <div class="meta">${s.dept} · ${s.subcat}<br>Origin: ${s.homeFactory}</div>
-        <span class="badge ${s.status==='instock'?'instock':'out'}">${s.status==='instock'?'In showroom':'Checked out'}</span>
+        <span class="badge ${avail>0?'instock':'out'}">${avail>0? (s.qty>1? `${avail} of ${s.qty} available` : 'In showroom') : 'Checked out'}</span>
         ${s.currentLocation!==s.homeFactory ? `<span class="badge loc">At ${s.currentLocation}</span>`:''}
       </div>
     </div>`;
@@ -874,7 +939,7 @@ function sampleCard(s, canAdd, canSelect){
 /* ---- Selection / request flow ---- */
 function toggleSelect(id){
   const s = state.samples.find(x=>x.id===id);
-  if(s && s.status!=='instock' && !state.selection.has(id)) return; // can't select something already checked out
+  if(s && availableQty(s)<=0 && !state.selection.has(id)) return; // can't select something with none available
   if(state.selection.has(id)) state.selection.delete(id); else state.selection.add(id);
   updateSelectionBar(); renderGallery(document.getElementById('main'));
 }
@@ -886,6 +951,16 @@ function updateSelectionBar(){
   const role = state.currentUser && state.currentUser.role;
   if(btn) btn.textContent = isRequester(role) ? 'Send request to showroom →' : 'Hand over selected →';
 }
+function renderCheckoutItems(items){
+  const holder = document.getElementById('co-items');
+  holder.innerHTML = items.map(s=>{
+    const max = availableQty(s);
+    return `<div class="co-item-row" data-sample-id="${s.id}" data-max="${max}">
+      <div class="ci-name"><b>${s.code}</b><span>${s.dept} · ${s.subcat} — ${max} of ${s.qty||1} available</span></div>
+      <input type="number" min="1" max="${max}" value="1" class="co-qty-input">
+    </div>`;
+  }).join('');
+}
 function handleSelectionAction(){
   const role = state.currentUser.role;
   if(isRequester(role)) openRequestModal(); else openBulkHandover();
@@ -893,8 +968,10 @@ function handleSelectionAction(){
 function openBulkHandover(){
   const items = [...state.selection].map(id=>state.samples.find(s=>s.id===id));
   document.getElementById('co-title').textContent = `Hand over ${items.length} sample${items.length===1?'':'s'}`;
+  renderCheckoutItems(items);
   document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
   document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
+  document.getElementById('co-buyer').value=''; document.getElementById('co-email').value='';
   document.getElementById('co-returnable').classList.add('on');
   document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify(items.map(s=>s.id));
   document.getElementById('modal-checkout').dataset.requestId = '';
@@ -903,24 +980,25 @@ function openBulkHandover(){
 function openRequestModal(){
   const items = [...state.selection].map(id=>state.samples.find(s=>s.id===id));
   document.getElementById('req-summary').textContent = items.map(s=>s.code).join(', ') + ` — ${items.length} sample${items.length===1?'':'s'}`;
-  document.getElementById('req-id').value=''; document.getElementById('req-destination').value='';
+  document.getElementById('req-id').value=''; document.getElementById('req-destination').value=''; document.getElementById('req-buyer').value='';
   openModal('modal-request');
 }
 async function sendRequest(){
   const idCard = document.getElementById('req-id').value.trim();
   const destination = document.getElementById('req-destination').value.trim();
   const reason = document.getElementById('req-reason').value;
+  const buyer = document.getElementById('req-buyer').value.trim();
   if(!idCard || !destination) return alert('ID card number and destination are required.');
   const items = [...state.selection];
   const factories = [...new Set(items.map(id=>state.samples.find(s=>s.id===id).currentLocation))];
   state.requests.unshift({
     id:'r'+Date.now(), requesterName: state.currentUser.name, requesterRole: state.currentUser.role,
-    idCard, destination, reason, sampleIds: items, targetFactories: factories,
+    idCard, destination, reason, buyer, sampleIds: items, targetFactories: factories,
     status:'pending', createdDate: new Date().toISOString().slice(0,10)
   });
   await saveRequests();
   closeModal('modal-request'); clearSelection();
-  alert('Request sent — the showroom team has been notified.');
+  toast('Request sent — the showroom team has been notified.');
   render();
 }
 function renderMyRequests(main){
@@ -938,7 +1016,7 @@ function requestCard(r, actionable){
   const items = r.sampleIds.map(id=>state.samples.find(s=>s.id===id)).filter(Boolean);
   return `<div class="req-item">
     <div class="req-top"><b>${r.requesterName}</b><span>${r.status==='pending'?'Pending':'Fulfilled'} · ${r.createdDate}</span></div>
-    <div class="req-meta">ID: ${r.idCard} · Reason: ${r.reason} · Destination: ${r.destination}</div>
+    <div class="req-meta">ID: ${r.idCard} · Reason: ${r.reason} · Destination: ${r.destination}${r.buyer? ' · Buyer: '+r.buyer:''}</div>
     <div class="req-thumbs">${items.map(s=>`<div class="rt">${s.photos[0]?`<img src="${s.photos[0].data}">`:''}</div>`).join('')}</div>
     <p style="font-size:12.5px; margin-bottom:10px;">${items.map(s=>s.code).join(', ')}</p>
     ${actionable && r.status==='pending' ? `<button class="btn small solid" onclick="openFulfill('${r.id}')">Review &amp; hand over</button>` : ''}
@@ -948,11 +1026,15 @@ let activeRequestId = null;
 function openFulfill(reqId){
   activeRequestId = reqId;
   const r = state.requests.find(x=>x.id===reqId);
+  const items = r.sampleIds.map(id=>state.samples.find(s=>s.id===id)).filter(Boolean);
   document.getElementById('co-title').textContent = 'Confirm hand-over';
+  renderCheckoutItems(items);
   document.getElementById('co-name').value = r.requesterName;
   document.getElementById('co-id').value = r.idCard;
   document.getElementById('co-destination').value = r.destination;
   document.getElementById('co-reason').value = r.reason;
+  document.getElementById('co-buyer').value = r.buyer || '';
+  document.getElementById('co-email').value = '';
   document.getElementById('co-returnable').classList.add('on');
   document.getElementById('modal-checkout').dataset.sampleIds = '';
   document.getElementById('modal-checkout').dataset.requestId = reqId;
@@ -961,18 +1043,37 @@ function openFulfill(reqId){
 
 /* ---- Dispatched items (everyone) ---- */
 function renderDispatched(main){
-  const items = state.samples.filter(s=>s.status==='out');
-  main.innerHTML = `<div class="topbar"><div><h1>Dispatched items</h1><p class="sub">Every sample currently checked out, across all factories</p></div></div>
-  ${items.length===0? `<div class="empty"><p class="big">Nothing checked out right now</p></div>` :
-  `<div class="grid">${items.map(s=>`
+  let rows = [];
+  state.samples.forEach(s=>{
+    (s.checkouts||[]).forEach(c=>{
+      rows.push({ sample:s, checkout:c });
+    });
+  });
+  main.innerHTML = `<div class="topbar"><div><h1>Dispatched items</h1><p class="sub">Every piece currently checked out, across all factories</p></div></div>
+  ${rows.length===0? `<div class="empty"><p class="big">Nothing checked out right now</p></div>` :
+  `<div class="grid">${rows.map(({sample:s,checkout:c})=>`
     <div class="card" onclick="openDetail('${s.id}')">
       <div class="thumb">${s.photos[0]?`<img src="${s.photos[0].data}">`:`<div class="ph">${s.subcat}</div>`}</div>
       <div class="body">
-        <div class="code">${s.code}</div>
-        <div class="meta">${s.homeFactory} · With ${s.checkout?.name||'—'}<br>${s.checkout?.destination||''} · ${s.checkout?.reason||''}</div>
-        <span class="badge out">${s.checkout?.returnable? 'Returnable':'Non-returnable'}</span>
+        <div class="code">${s.code} <span style="color:var(--muted); font-weight:400;">(${c.qty} pc${c.qty===1?'':'s'})</span></div>
+        <div class="meta">${s.homeFactory} · With ${c.name}<br>${c.destination} · ${c.reason}${c.buyer? ' · '+c.buyer:''}</div>
+        <span class="badge out">${c.returnable? 'Returnable':'Non-returnable'}</span>
       </div>
     </div>`).join('')}</div>`}`;
+}
+
+/* ---- All department photos (visual catalog across Men's/Women's/Kids') ---- */
+function renderPhotoWall(main){
+  const samples = visibleSamples().filter(s=>s.photos.length>0);
+  const byDept = {};
+  samples.forEach(s=>{ (byDept[s.dept] = byDept[s.dept]||[]).push(s); });
+  const depts = Object.keys(state.categoryTree);
+  main.innerHTML = `<div class="topbar"><div><h1>All department photos</h1><p class="sub">Every photographed sample, grouped by department</p></div></div>
+  ${samples.length===0? `<div class="empty"><p class="big">No photos uploaded yet</p></div>` :
+  depts.filter(d=>byDept[d] && byDept[d].length).map(d=>`
+    <div class="section-label" style="font-size:15px; text-transform:none; letter-spacing:0; font-family:var(--serif); color:var(--ink); margin-top:28px;">${d} <span style="font-size:11px; color:var(--muted); font-family:var(--sans);">${byDept[d].length} sample${byDept[d].length===1?'':'s'}</span></div>
+    <div class="grid">${byDept[d].map(s=>sampleCard(s,false,false)).join('')}</div>
+  `).join('')}`;
 }
 
 /* ---- Activity log (accountability, visible to everyone) ---- */
@@ -1002,7 +1103,7 @@ function renderOverview(main){
   ${statRow(samples)}
   <div class="grid">${FACTORIES.map(f=>{
     const fs = samples.filter(s=>s.currentLocation===f);
-    return `<div class="stat-card"><div class="n">${fs.length}</div><div class="l">${f} — ${fs.filter(s=>s.status==='instock').length} in showroom</div></div>`;
+    return `<div class="stat-card"><div class="n">${fs.length}</div><div class="l">${f} — ${fs.filter(s=>availableQty(s)>0).length} in showroom</div></div>`;
   }).join('')}</div>`;
 }
 
@@ -1182,6 +1283,7 @@ function openAddModal(){
   pendingPhotos = [];
   renderPhotoStrip();
   document.getElementById('f-code').value='';
+  document.getElementById('f-qty').value='1';
   document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
   if(state.currentUser.role==='showroom'){ document.getElementById('f-factory').value = state.currentUser.factory; }
   openModal('modal-add');
@@ -1193,11 +1295,12 @@ async function saveSample(){
   const date = document.getElementById('f-date').value || new Date().toISOString().slice(0,10);
   const s = {
     id: 's'+Date.now(), code,
+    qty: Math.max(parseInt(document.getElementById('f-qty').value)||1, 1),
     dept: document.getElementById('f-dept').value,
     cat: document.getElementById('f-cat').value,
     subcat: document.getElementById('f-subcat').value,
     homeFactory: factory, currentLocation: factory,
-    photos: pendingPhotos, status:'instock', checkout:null,
+    photos: pendingPhotos, checkouts: [],
     enteredBy: state.currentUser.name, enteredDate: date,
     history: [{type:'entry', date, ts: Date.now(), by: state.currentUser.name, factory}]
   };
@@ -1208,55 +1311,98 @@ async function saveSample(){
 }
 
 /* ============ CHECKOUT / RETURN / TRANSFER ============ */
+function downloadCSV(rows, filename){
+  const header = ["Style Number","Buyer","Qty","Destination","Reason","Returnable","Date","Recipient","ID Card","Handed Over By"];
+  const lines = [header.join(",")];
+  rows.forEach(r=>{
+    const row = [r.styleNumber, r.buyer, r.qty, r.destination, r.reason, r.returnable?"Returnable":"Non-returnable", r.date, r.recipient, r.idCard, r.processedBy];
+    lines.push(row.map(v=>`"${String(v||'').replace(/"/g,'""')}"`).join(","));
+  });
+  const blob = new Blob([lines.join("\n")], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
 async function confirmCheckout(){
   const name = document.getElementById('co-name').value.trim();
   const idCard = document.getElementById('co-id').value.trim();
   const destination = document.getElementById('co-destination').value.trim();
   const reason = document.getElementById('co-reason').value;
+  const buyer = document.getElementById('co-buyer').value.trim();
+  const email = document.getElementById('co-email').value.trim();
   const returnable = document.getElementById('co-returnable').classList.contains('on');
   if(!name || !idCard || !destination) return alert('Name, ID card number, and destination are required.');
+
+  const itemRows = [...document.querySelectorAll('#co-items .co-item-row')].map(row=>{
+    const max = parseInt(row.dataset.max)||1;
+    let qty = parseInt(row.querySelector('input').value)||1;
+    qty = Math.min(Math.max(qty,1), max);
+    return { sampleId: row.dataset.sampleId, qty };
+  });
+  if(itemRows.length===0) return alert('No items to hand over.');
+
   const today = new Date().toISOString().slice(0,10);
   const now = Date.now();
+  const proofRows = [];
+
+  itemRows.forEach(({sampleId, qty})=>{
+    const s = state.samples.find(x=>x.id===sampleId);
+    if(!s) return;
+    const checkoutId = 'c'+now+Math.random().toString(36).slice(2,7);
+    s.checkouts = s.checkouts || [];
+    s.checkouts.push({ id: checkoutId, name, idCard, destination, reason, buyer, returnable, qty, date: today, processedBy: state.currentUser.name });
+    s.history.push({ type:'checkout', date: today, ts: now, by: state.currentUser.name, name, idCard, destination, reason, buyer, returnable, qty, checkoutId });
+    proofRows.push({ styleNumber: s.code, buyer, qty, destination, reason, returnable, date: today, recipient: name, idCard, processedBy: state.currentUser.name });
+  });
+
   const modal = document.getElementById('modal-checkout');
   const reqId = modal.dataset.requestId;
-  const batchIds = modal.dataset.sampleIds ? JSON.parse(modal.dataset.sampleIds) : [];
-
-  const applyCheckout = (s)=>{
-    s.status = 'out';
-    s.checkout = { name, idCard, destination, reason, returnable, date: today, processedBy: state.currentUser.name };
-    s.history.push({type:'checkout', date: today, ts: now, by: state.currentUser.name, name, idCard, destination, reason, returnable});
-  };
-
   if(reqId){
     const r = state.requests.find(x=>x.id===reqId);
-    r.status='fulfilled';
-    r.sampleIds.forEach(sid=>{ const s = state.samples.find(x=>x.id===sid); if(s) applyCheckout(s); });
+    if(r) r.status='fulfilled';
     await saveRequests();
-  } else if(batchIds.length){
-    batchIds.forEach(sid=>{ const s = state.samples.find(x=>x.id===sid); if(s) applyCheckout(s); });
   }
   await saveSamples();
   modal.dataset.requestId=''; modal.dataset.sampleIds='';
   closeModal('modal-checkout');
   state.selection.clear(); updateSelectionBar();
+
+  const subject = `Sample Hand-over Proof - ${today}`;
+  if(email && backendConnected()){
+    try{
+      await apiPost('sendProofEmail', { to: email, subject, rows: proofRows });
+      toast('Hand-over confirmed — proof sheet emailed to '+email);
+    }catch(e){
+      toast('Hand-over confirmed, but the proof email failed to send: '+e.message, 'error');
+      downloadCSV(proofRows, subject+'.csv');
+    }
+  } else {
+    downloadCSV(proofRows, subject+'.csv');
+    toast('Hand-over confirmed — proof sheet downloaded.');
+  }
+
   if(document.getElementById('modal-detail').classList.contains('active') && detailSampleId) openDetail(detailSampleId);
   render();
 }
 function openDirectCheckout(sampleId){
+  const s = state.samples.find(x=>x.id===sampleId);
   document.getElementById('co-title').textContent = 'Hand over sample';
+  renderCheckoutItems([s]);
   document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
   document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
+  document.getElementById('co-buyer').value=''; document.getElementById('co-email').value='';
   document.getElementById('co-returnable').classList.add('on');
   document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify([sampleId]);
   document.getElementById('modal-checkout').dataset.requestId = '';
   openModal('modal-checkout');
 }
-async function markReturned(sampleId){
+async function markReturned(sampleId, checkoutId){
   const s = state.samples.find(x=>x.id===sampleId);
-  if(!s.checkout || !s.checkout.returnable) return;
+  const c = (s.checkouts||[]).find(x=>x.id===checkoutId);
+  if(!c || !c.returnable) return;
   const today = new Date().toISOString().slice(0,10);
-  s.history.push({type:'return', date: today, ts: Date.now(), by: state.currentUser.name});
-  s.status = 'instock'; s.checkout = null;
+  s.history.push({type:'return', date: today, ts: Date.now(), by: state.currentUser.name, qty: c.qty, checkoutId});
+  s.checkouts = s.checkouts.filter(x=>x.id!==checkoutId);
   await saveSamples();
   openDetail(sampleId); render();
 }
@@ -1295,6 +1441,7 @@ function renderDetail(){
   const s = state.samples.find(x=>x.id===detailSampleId);
   if(!s) return;
   const role = state.currentUser.role;
+  const avail = availableQty(s);
   document.getElementById('dt-code').textContent = s.code;
   document.getElementById('dt-path').textContent = `${s.dept} → ${s.cat} → ${s.subcat}`;
 
@@ -1303,50 +1450,61 @@ function renderDetail(){
   document.getElementById('dt-thumbs').innerHTML = s.photos.map((p,i)=>`<div class="dt ${i===detailPhotoIndex?'active':''}" onclick="detailPhotoIndex=${i}; renderDetail();"><img src="${p.data}"></div>`).join('');
 
   document.getElementById('dt-badges').innerHTML = `
-    <span class="badge ${s.status==='instock'?'instock':'out'}">${s.status==='instock'?'In showroom':'Checked out'}</span>
-    ${s.currentLocation!==s.homeFactory? `<span class="badge loc">At ${s.currentLocation}</span>`:''}
-    ${s.checkout ? `<span class="badge nr">${s.checkout.returnable?'Returnable':'Non-returnable'}</span>` : ''}`;
+    <span class="badge ${avail>0?'instock':'out'}">${avail>0? `${avail} of ${s.qty||1} available` : 'Fully checked out'}</span>
+    ${s.currentLocation!==s.homeFactory? `<span class="badge loc">At ${s.currentLocation}</span>`:''}`;
 
   let facts = [
+    ['Quantity', s.qty||1],
     ['Origin factory', s.homeFactory],
     ['Current location', s.currentLocation],
     ['Entered by', s.enteredBy],
     ['Entry date', s.enteredDate]
   ];
-  if(s.checkout){
-    facts.push(['Held by', s.checkout.name + ' (ID ' + s.checkout.idCard + ')']);
-    facts.push(['Destination', s.checkout.destination]);
-    facts.push(['Reason', s.checkout.reason]);
-    facts.push(['Handed over by', s.checkout.processedBy]);
-  }
   document.getElementById('dt-facts').innerHTML = facts.map(f=>`<div class="f"><span>${f[0]}</span><span>${f[1]}</span></div>`).join('');
 
   const canAct = role==='showroom' || role==='superadmin';
   let actions = '';
   if(canAct){
-    if(s.status==='instock'){
+    if(avail>0){
       actions += `<button class="btn small solid" onclick="openDirectCheckout('${s.id}')">Hand over sample</button>`;
-      actions += `<button class="btn small" onclick="openTransferModal('${s.id}')">Transfer to another factory</button>`;
-      if(s.currentLocation!==s.homeFactory){
-        actions += `<button class="btn small" onclick="returnFromTransfer('${s.id}')">Return to ${s.homeFactory}</button>`;
-      }
-    } else {
-      if(s.checkout && s.checkout.returnable){
-        actions += `<button class="btn small solid" onclick="markReturned('${s.id}')">Mark returned</button>`;
-      } else {
-        actions += `<span style="font-size:12px; color:var(--muted);">Non-returnable — permanently with buyer/holder.</span>`;
-      }
     }
+    actions += `<button class="btn small" onclick="openTransferModal('${s.id}')">Transfer to another factory</button>`;
+    if(s.currentLocation!==s.homeFactory){
+      actions += `<button class="btn small" onclick="returnFromTransfer('${s.id}')">Return to ${s.homeFactory}</button>`;
+    }
+    actions += `<div class="field" style="width:100%; margin-top:14px;"><label>Edit quantity</label>
+      <div style="display:flex; gap:8px;"><input type="number" id="dt-qty-edit" min="1" value="${s.qty||1}" style="max-width:100px;">
+      <button class="btn small" onclick="updateQty('${s.id}')">Save</button></div></div>`;
   }
   document.getElementById('dt-actions').innerHTML = actions;
+
+  if((s.checkouts||[]).length){
+    document.getElementById('dt-actions').innerHTML += `<div class="section-label">Currently with</div>` +
+      s.checkouts.map(c=>`
+        <div class="req-item" style="margin-top:6px;">
+          <div class="req-top"><b>${c.name}</b><span>${c.qty} pc${c.qty===1?'':'s'}</span></div>
+          <div class="req-meta">ID ${c.idCard} · ${c.reason} · ${c.destination}${c.buyer? ' · Buyer: '+c.buyer:''}<br>${c.returnable?'Returnable':'Non-returnable'} · Handed over by ${c.processedBy} on ${c.date}</div>
+          ${canAct && c.returnable ? `<button class="btn small solid" onclick="markReturned('${s.id}','${c.id}')">Mark this returned</button>` : (canAct? `<span style="font-size:12px; color:var(--muted);">Non-returnable — stays with holder.</span>`:'')}
+        </div>`).join('');
+  }
 
   const hist = [...s.history].reverse();
   document.getElementById('dt-history').innerHTML = hist.map(h=>`<div class="hist-row"><span class="hd">${h.date}</span><span>${historyLine(h)}</span></div>`).join('') || `<p style="font-size:12.5px; color:var(--muted);">No history yet.</p>`;
 }
+async function updateQty(sampleId){
+  const s = state.samples.find(x=>x.id===sampleId);
+  const v = Math.max(parseInt(document.getElementById('dt-qty-edit').value)||1, 1);
+  const taken = (s.checkouts||[]).reduce((sum,c)=>sum+(c.qty||1),0);
+  if(v < taken) return alert(`Can't set quantity below ${taken} — that many pieces are currently checked out.`);
+  s.qty = v;
+  await saveSamples();
+  toast('Quantity updated.');
+  openDetail(sampleId); render();
+}
 function historyLine(h){
   if(h.type==='entry') return `Entered showroom at ${h.factory} by ${h.by}`;
-  if(h.type==='checkout') return `Handed to ${h.name} (ID ${h.idCard}) for ${h.reason.toLowerCase()} at ${h.destination} — ${h.returnable?'returnable':'non-returnable'}. Processed by ${h.by}.`;
-  if(h.type==='return') return `Returned to showroom, confirmed by ${h.by}`;
+  if(h.type==='checkout') return `Handed ${h.qty||1} pc${(h.qty||1)===1?'':'s'} to ${h.name} (ID ${h.idCard}) for ${h.reason.toLowerCase()} at ${h.destination}${h.buyer?' · Buyer: '+h.buyer:''} — ${h.returnable?'returnable':'non-returnable'}. Processed by ${h.by}.`;
+  if(h.type==='return') return `${h.qty||1} pc${(h.qty||1)===1?'':'s'} returned to showroom, confirmed by ${h.by}`;
   if(h.type==='transfer') return `Transferred from ${h.from} to ${h.to} for showcase, by ${h.by}`;
   if(h.type==='transfer-return') return `Sent back from ${h.from} to home factory ${h.to}, by ${h.by}`;
   return '';
