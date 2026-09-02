@@ -875,7 +875,7 @@ function renderGallery(main){
     </div>
     ${role!=='merchandiser' && role!=='designer' ? statRow(samples) : ''}
     <div class="toolbar">
-      <input type="text" id="search-box" placeholder="Search by sample code…" oninput="renderGrid(currentGallerySamples, currentGalleryCanAdd, currentGalleryCanSelect)">
+      <input type="text" id="search-box" placeholder="Search by code, style, or category…" oninput="renderGrid(currentGallerySamples, currentGalleryCanAdd, currentGalleryCanSelect)" onkeydown="if(event.key==='Enter'){ event.preventDefault(); renderGrid(currentGallerySamples, currentGalleryCanAdd, currentGalleryCanSelect); }">
       <select id="status-filter" onchange="renderGrid(currentGallerySamples, currentGalleryCanAdd, currentGalleryCanSelect)">
         <option value="all">All statuses</option>
         <option value="instock">In showroom</option>
@@ -901,10 +901,14 @@ function statRow(samples){
 
 function renderGrid(samples, canAdd, canSelect){
   const role = state.currentUser.role;
-  const q = (document.getElementById('search-box')?.value || '').toLowerCase();
+  const q = (document.getElementById('search-box')?.value || '').toLowerCase().trim();
   const statusF = document.getElementById('status-filter')?.value || 'all';
   let filtered = samples.filter(s=>{
-    if(q && !s.code.toLowerCase().includes(q)) return false;
+    if(q){
+      const haystack = [s.code, s.subcat, s.cat, s.dept, s.homeFactory, ...(s.checkouts||[]).map(c=>c.buyer)]
+        .filter(Boolean).join(' ').toLowerCase();
+      if(!haystack.includes(q)) return false;
+    }
     const avail = availableQty(s);
     if(statusF==='instock' && avail<=0) return false;
     if(statusF==='out' && avail>0) return false;
