@@ -854,11 +854,13 @@ function visibleSamples(){
   });
 }
 
+let currentGallerySamples = [], currentGalleryCanAdd = false, currentGalleryCanSelect = false;
 function renderGallery(main){
   const role = state.currentUser.role;
   const samples = visibleSamples();
   const canAdd = role==='showroom' || role==='superadmin';
   const canSelect = isRequester(role) || role==='showroom' || role==='superadmin';
+  currentGallerySamples = samples; currentGalleryCanAdd = canAdd; currentGalleryCanSelect = canSelect;
 
   main.innerHTML = `
     <div class="topbar">
@@ -873,8 +875,8 @@ function renderGallery(main){
     </div>
     ${role!=='merchandiser' && role!=='designer' ? statRow(samples) : ''}
     <div class="toolbar">
-      <input type="text" id="search-box" placeholder="Search by sample code…" oninput="renderGallery(document.getElementById('main'))">
-      <select id="status-filter" onchange="renderGallery(document.getElementById('main'))">
+      <input type="text" id="search-box" placeholder="Search by sample code…" oninput="renderGrid(currentGallerySamples, currentGalleryCanAdd, currentGalleryCanSelect)">
+      <select id="status-filter" onchange="renderGrid(currentGallerySamples, currentGalleryCanAdd, currentGalleryCanSelect)">
         <option value="all">All statuses</option>
         <option value="instock">In showroom</option>
         <option value="out">Checked out</option>
