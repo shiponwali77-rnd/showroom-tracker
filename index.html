@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Standard Group — Showroom Sample Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#9E1B24">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -307,7 +309,7 @@
       <p>The internal showcase system for Standard Group's factories — tracking what's on display, what's on loan, and what's gone for good, across every showroom in the group.</p>
     </div>
     <div class="brand-foot">
-      <span><b>CET · ITSL · SDL · TCESL	· YFL</b></span>
+      <span><b>CET · ITSL · SDL · TCESL</b></span>
       <span><b>Live</b> sample status</span>
       <span><b>Buyer</b>-ready</span>
     </div>
@@ -356,6 +358,8 @@
     </div>
   </div>
 </div>
+
+<div id="public-preview" class="hidden" style="min-height:100vh; background:var(--paper);"></div>
 
 <!-- ===================== APP ===================== -->
 <div id="app">
@@ -509,6 +513,45 @@
       <div class="field"><label>Send to factory</label><select id="tr-factory"></select></div>
     </div>
     <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="confirmTransfer()">Confirm transfer</button></div>
+  </div>
+</div>
+
+<!-- Shortlist Picker Modal -->
+<div class="overlay" id="modal-shortlist">
+  <div class="modal">
+    <div class="modal-head"><h3>Add to shortlist</h3><span class="modal-close" onclick="closeModal('modal-shortlist')">&times;</span></div>
+    <div class="modal-body">
+      <div id="sp-list"></div>
+      <div class="field"><label>Or create a new shortlist</label><input type="text" id="sp-new-name" placeholder="e.g. Zara Meeting — Sept"></div>
+    </div>
+    <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="createShortlistWithSample()">Create &amp; add</button></div>
+  </div>
+</div>
+
+<!-- Create Buyer Preview Link Modal -->
+<div class="overlay" id="modal-preview-create">
+  <div class="modal wide">
+    <div class="modal-head"><h3>Create buyer preview link</h3><span class="modal-close" onclick="closeModal('modal-preview-create')">&times;</span></div>
+    <div class="modal-body">
+      <div class="row2">
+        <div class="field"><label>Link name</label><input type="text" id="pv-name" placeholder="e.g. Zara Autumn Selection"></div>
+        <div class="field"><label>Buyer (optional)</label><input type="text" id="pv-buyer" placeholder="e.g. Zara"></div>
+      </div>
+      <div class="section-label" style="margin-top:6px;">What should this link show?</div>
+      <div style="display:flex; gap:16px; flex-wrap:wrap; margin-bottom:18px; font-size:12.5px;">
+        <label><input type="checkbox" id="pv-f-photos" checked> Photos</label>
+        <label><input type="checkbox" id="pv-f-buyer" checked> Buyer</label>
+        <label><input type="checkbox" id="pv-f-fabrication" checked> Fabrication</label>
+        <label><input type="checkbox" id="pv-f-condition" checked> Condition</label>
+        <label><input type="checkbox" id="pv-f-tags" checked> Tags</label>
+        <label><input type="checkbox" id="pv-f-factory" checked> Factory</label>
+        <label><input type="checkbox" id="pv-f-qty" checked> Availability</label>
+      </div>
+      <div class="section-label">Choose samples</div>
+      <input type="text" id="pv-sample-search" placeholder="Search samples…" oninput="renderPreviewSamplePicker()" style="width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:2px; margin-bottom:10px; font-size:13px;">
+      <div id="pv-sample-list" style="max-height:280px; overflow-y:auto; border:1px solid var(--line); padding:8px;"></div>
+    </div>
+    <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="createPreview()">Create link</button></div>
   </div>
 </div>
 
@@ -679,7 +722,7 @@ function toast(msg, type){
 /* ============ STATE ============ */
 let state = {
   users: {}, samples: [], requests: [], categoryTree: {}, tagList: [], factories: [],
-  conditionTags: [], customFields: [], fieldVisibility: {},
+  conditionTags: [], customFields: [], fieldVisibility: {}, shortlists: [], previews: [],
   currentUser: null,
   filterFactory: "all", filterDept: null, filterCat: null,
   navView: "gallery", selection: new Set(),
@@ -706,6 +749,8 @@ async function loadData(){
       state.conditionTags = data.conditionTags && data.conditionTags.length ? data.conditionTags : [...DEFAULT_CONDITION_TAGS];
       state.customFields = data.customFields || [];
       state.fieldVisibility = data.fieldVisibility || {...DEFAULT_FIELD_VISIBILITY};
+      state.shortlists = data.shortlists || [];
+      state.previews = data.previews || [];
       return;
     }catch(e){
       alert('Could not reach the Google Sheet backend. Check your internet connection or the deployment URL. Falling back to local demo data for now.');
@@ -720,6 +765,8 @@ async function loadData(){
   try{ const ct = await window.storage.get('sst:conditionTags', true); state.conditionTags = ct? JSON.parse(ct.value): [...DEFAULT_CONDITION_TAGS]; }catch(e){ state.conditionTags = [...DEFAULT_CONDITION_TAGS]; }
   try{ const cf = await window.storage.get('sst:customFields', true); state.customFields = cf? JSON.parse(cf.value): []; }catch(e){ state.customFields = []; }
   try{ const fv = await window.storage.get('sst:fieldVisibility', true); state.fieldVisibility = fv? JSON.parse(fv.value): {...DEFAULT_FIELD_VISIBILITY}; }catch(e){ state.fieldVisibility = {...DEFAULT_FIELD_VISIBILITY}; }
+  try{ const sl = await window.storage.get('sst:shortlists', true); state.shortlists = sl? JSON.parse(sl.value): []; }catch(e){ state.shortlists = []; }
+  try{ const pv = await window.storage.get('sst:previews', true); state.previews = pv? JSON.parse(pv.value): []; }catch(e){ state.previews = []; }
 }
 async function saveUsers(){
   if(backendConnected()){ try{ await apiPost('saveUsers', state.users); }catch(e){ toast('Could not save accounts to Google Sheet: '+e.message, 'error'); } return; }
@@ -757,6 +804,14 @@ async function saveFieldVisibilitySettings(){
   if(backendConnected()){ try{ await apiPost('saveFieldVisibility', state.fieldVisibility); }catch(e){ toast('Could not save field settings: '+e.message, 'error'); } return; }
   try{ await window.storage.set('sst:fieldVisibility', JSON.stringify(state.fieldVisibility), true); }catch(e){}
 }
+async function saveShortlistsList(){
+  if(backendConnected()){ try{ await apiPost('saveShortlists', state.shortlists); }catch(e){ toast('Could not save shortlists: '+e.message, 'error'); } return; }
+  try{ await window.storage.set('sst:shortlists', JSON.stringify(state.shortlists), true); }catch(e){}
+}
+async function savePreviewsList(){
+  if(backendConnected()){ try{ await apiPost('savePreviews', state.previews); }catch(e){ toast('Could not save preview links: '+e.message, 'error'); } return; }
+  try{ await window.storage.set('sst:previews', JSON.stringify(state.previews), true); }catch(e){}
+}
 
 
 /* ============ AUTH ============ */
@@ -766,6 +821,11 @@ function getRememberedSession(){ try{ return localStorage.getItem('sst:loggedInU
 
 async function initApp(){
   await loadData();
+  const previewId = new URLSearchParams(location.search).get('preview');
+  if(previewId){
+    renderPublicPreview(previewId);
+    return;
+  }
   const saved = getRememberedSession();
   if(saved && state.users[saved]){
     state.currentUser = { username: saved, ...state.users[saved] };
@@ -828,9 +888,21 @@ function initShell(){
     items.push({id:'overview', label:'Overview'});
     items.push({id:'gallery', label:'All samples'});
   }
+  if(role==='merchandiser' || role==='superadmin'){
+    items.push({id:'overview', label:'Dashboard'});
+  }
   items.push({id:'dispatched', label:'Dispatched items'});
   if(role==='showroom' || role==='superadmin' || role==='director'){
     items.push({id:'overdue', label:'Overdue returns', badge: countOverdue()||''});
+  }
+  if(role==='designer' || role==='director' || role==='showroom'){
+    items.push({id:'aging', label:'Sample aging report'});
+  }
+  if(role==='merchandiser' || role==='designer' || role==='director'){
+    items.push({id:'shortlists', label:'My shortlists'});
+  }
+  if(role==='merchandiser' || role==='designer' || role==='director' || role==='superadmin'){
+    items.push({id:'previews', label:'Buyer preview links'});
   }
   items.push({id:'photowall', label:'All department photos'});
   items.push({id:'activity', label:'Activity log'});
@@ -906,6 +978,9 @@ function render(){
   if(state.navView==='overview'){ renderOverview(main); return; }
   if(state.navView==='dispatched'){ renderDispatched(main); return; }
   if(state.navView==='overdue'){ renderOverdue(main); return; }
+  if(state.navView==='aging'){ renderAging(main); return; }
+  if(state.navView==='shortlists'){ renderShortlists(main); return; }
+  if(state.navView==='previews'){ renderPreviews(main); return; }
   if(state.navView==='photowall'){ renderPhotoWall(main); return; }
   if(state.navView==='activity'){ renderActivity(main); return; }
   renderGallery(main);
@@ -1159,18 +1234,328 @@ function renderOverdue(main){
     </div>`).join('')}</div>`}`;
 }
 
+/* ---- Sample Aging Report (Designer, Director, Showroom) ---- */
+const AGING_WARN_DAYS = 30;
+function renderAging(main){
+  const role = state.currentUser.role;
+  let samples = state.samples.filter(s=> availableQty(s) > 0); // sitting in showroom, unclaimed
+  if(role==='showroom') samples = samples.filter(s=> s.currentLocation===state.currentUser.factory);
+  samples = samples.map(s=>({ s, days: daysSince(s.enteredDate) }));
+  samples.sort((a,b)=> b.days - a.days);
+  const stale = samples.filter(x=>x.days >= AGING_WARN_DAYS).length;
+  main.innerHTML = `<div class="topbar"><div><h1>Sample aging report</h1><p class="sub">How long each in-showroom sample has been sitting since entry</p></div></div>
+  <div class="stat-row">
+    <div class="stat-card"><div class="n">${samples.length}</div><div class="l">In showroom now</div></div>
+    <div class="stat-card"><div class="n">${stale}</div><div class="l">${AGING_WARN_DAYS}+ days old</div></div>
+  </div>
+  ${samples.length===0? `<div class="empty"><p class="big">Nothing in showroom right now</p></div>` :
+  `<div class="grid">${samples.map(({s,days})=>`
+    <div class="card" onclick="openDetail('${s.id}')">
+      <div class="thumb">${s.photos[0]?`<img src="${s.photos[0].data}">`:`<div class="ph">${s.subcat}</div>`}</div>
+      <div class="body">
+        <div class="code">${s.code}</div>
+        <div class="meta">${s.dept} · ${s.subcat}<br>${s.homeFactory} · Entered ${s.enteredDate}</div>
+        <span class="badge" style="${days>=AGING_WARN_DAYS? 'background:#3d1113; color:#ff9c9c;':'background:var(--paper-2); color:var(--muted);'}">${days} day${days===1?'':'s'} in showroom</span>
+      </div>
+    </div>`).join('')}</div>`}`;
+}
+
+/* ---- Shortlists (Merchandiser / Designer / Director) ---- */
+function myShortlists(){ return state.shortlists.filter(sl=>sl.ownerName===state.currentUser.name); }
+function renderShortlists(main){
+  const lists = myShortlists();
+  main.innerHTML = `<div class="topbar"><div><h1>My shortlists</h1><p class="sub">Samples you've saved for buyer meetings — reference only, no extra storage used</p></div></div>
+  ${lists.length===0? `<div class="empty"><p class="big">No shortlists yet</p><p>Open any sample and use "Add to shortlist" to start one.</p></div>` :
+  lists.map(sl=>`
+    <div class="req-item">
+      <div class="req-top"><b>${sl.name}</b><span>${sl.sampleIds.length} sample${sl.sampleIds.length===1?'':'s'}</span></div>
+      <div class="req-thumbs">${sl.sampleIds.map(id=>state.samples.find(s=>s.id===id)).filter(Boolean).slice(0,8).map(s=>`<div class="rt">${s.photos[0]?`<img src="${s.photos[0].data}">`:''}</div>`).join('')}</div>
+      <div style="display:flex; gap:8px; margin-top:10px;">
+        <button class="btn small solid" onclick="openShortlistView('${sl.id}')">View</button>
+        <button class="btn small" onclick="renameShortlist('${sl.id}')">Rename</button>
+        <button class="btn small danger" onclick="deleteShortlist('${sl.id}')">Delete</button>
+      </div>
+    </div>`).join('')}
+  `;
+}
+let viewingShortlistId = null;
+function openShortlistView(id){
+  viewingShortlistId = id;
+  const sl = state.shortlists.find(x=>x.id===id);
+  const main = document.getElementById('main');
+  const items = sl.sampleIds.map(sid=>state.samples.find(s=>s.id===sid)).filter(Boolean);
+  main.innerHTML = `<div class="topbar"><div><h1>${sl.name}</h1><p class="sub">${items.length} sample${items.length===1?'':'s'} · <span style="cursor:pointer; text-decoration:underline;" onclick="render()">← Back to shortlists</span></p></div></div>
+  ${items.length===0? `<div class="empty"><p class="big">No samples in this shortlist</p></div>` :
+  `<div class="grid">${items.map(s=>`
+    <div class="card" onclick="openDetail('${s.id}')">
+      <div class="thumb">${s.photos[0]?`<img src="${s.photos[0].data}">`:`<div class="ph">${s.subcat}</div>`}</div>
+      <div class="body">
+        <div class="code">${s.code}</div>
+        <div class="meta">${s.dept} · ${s.subcat}${s.buyer? ' · '+s.buyer:''}</div>
+        <button class="btn small" style="margin-top:8px;" onclick="event.stopPropagation(); removeFromShortlist('${sl.id}','${s.id}')">Remove</button>
+      </div>
+    </div>`).join('')}</div>`}`;
+}
+async function renameShortlist(id){
+  const sl = state.shortlists.find(x=>x.id===id);
+  const name = prompt('Rename shortlist:', sl.name);
+  if(!name || !name.trim()) return;
+  sl.name = name.trim();
+  await saveShortlistsList(); render();
+}
+async function deleteShortlist(id){
+  if(!confirm('Delete this shortlist? The samples themselves are unaffected.')) return;
+  state.shortlists = state.shortlists.filter(x=>x.id!==id);
+  await saveShortlistsList(); render();
+}
+async function removeFromShortlist(listId, sampleId){
+  const sl = state.shortlists.find(x=>x.id===listId);
+  sl.sampleIds = sl.sampleIds.filter(id=>id!==sampleId);
+  await saveShortlistsList();
+  openShortlistView(listId);
+}
+function openShortlistPicker(sampleId){
+  const mine = myShortlists();
+  const holder = document.getElementById('sp-list');
+  holder.innerHTML = mine.map(sl=>`<div class="nav-item" style="color:var(--ink); background:var(--paper-2); margin-bottom:6px;" onclick="addToShortlist('${sl.id}','${sampleId}')">${sl.name} (${sl.sampleIds.length})</div>`).join('') || `<p style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">You don't have any shortlists yet — create one below.</p>`;
+  document.getElementById('sp-new-name').value='';
+  document.getElementById('modal-shortlist').dataset.sampleId = sampleId;
+  openModal('modal-shortlist');
+}
+async function addToShortlist(listId, sampleId){
+  const sl = state.shortlists.find(x=>x.id===listId);
+  if(!sl.sampleIds.includes(sampleId)) sl.sampleIds.push(sampleId);
+  await saveShortlistsList();
+  closeModal('modal-shortlist');
+  toast(`Added to "${sl.name}".`);
+}
+async function createShortlistWithSample(){
+  const sampleId = document.getElementById('modal-shortlist').dataset.sampleId;
+  const name = document.getElementById('sp-new-name').value.trim();
+  if(!name) return alert('Give the shortlist a name.');
+  const sl = { id:'sl'+Date.now(), name, ownerName: state.currentUser.name, ownerRole: state.currentUser.role, sampleIds:[sampleId], createdDate: new Date().toISOString().slice(0,10) };
+  state.shortlists.push(sl);
+  await saveShortlistsList();
+  closeModal('modal-shortlist');
+  toast(`Created "${name}" and added the sample.`);
+}
+
+/* ---- Buyer Preview Links (Merchandiser / Designer / Director create; creator + Super Admin delete) ---- */
+function previewLinkUrl(id){
+  return location.origin + location.pathname + '?preview=' + id;
+}
+function canDeletePreview(pv){
+  const u = state.currentUser;
+  return u.role==='superadmin' || pv.createdBy===u.name;
+}
+function renderPreviews(main){
+  main.innerHTML = `<div class="topbar">
+    <div><h1>Buyer preview links</h1><p class="sub">Shareable, read-only links for buyer presentations — no login needed to view</p></div>
+    <button class="btn solid" onclick="openCreatePreview()">+ Create new</button>
+  </div>
+  ${state.previews.length===0? `<div class="empty"><p class="big">No preview links yet</p><p>Create one to share a curated selection with a buyer.</p></div>` :
+  state.previews.map(pv=>{
+    const canDelete = canDeletePreview(pv);
+    return `<div class="req-item">
+      <div class="req-top"><b>${pv.name}</b><span>${pv.createdDate} · by ${pv.createdBy}</span></div>
+      <div class="req-meta">${pv.sampleIds.length} sample${pv.sampleIds.length===1?'':'s'}${pv.buyer? ' · '+pv.buyer:''}</div>
+      <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; align-items:center;">
+        <button class="btn small solid" onclick="copyPreviewLink('${pv.id}')">Copy link</button>
+        <button class="btn small" onclick="window.open('${previewLinkUrl(pv.id)}','_blank')">Open</button>
+        ${canDelete
+          ? `<button class="btn small danger" onclick="deletePreview('${pv.id}')">Delete</button>`
+          : `<span style="font-size:11.5px; color:var(--muted);">Only ${pv.createdBy} or a Super Admin can delete this</span>`}
+      </div>
+    </div>`;
+  }).join('')}
+  `;
+}
+let previewDraftSelection = new Set();
+function openCreatePreview(){
+  previewDraftSelection = new Set();
+  document.getElementById('pv-name').value=''; document.getElementById('pv-buyer').value='';
+  document.getElementById('pv-sample-search').value='';
+  ['photos','buyer','fabrication','condition','tags','factory','qty'].forEach(k=> document.getElementById('pv-f-'+k).checked = true);
+  renderPreviewSamplePicker();
+  openModal('modal-preview-create');
+}
+function renderPreviewSamplePicker(){
+  const q = (document.getElementById('pv-sample-search').value||'').toLowerCase();
+  const list = state.samples.filter(s=> !q || s.code.toLowerCase().includes(q) || s.subcat.toLowerCase().includes(q) || s.dept.toLowerCase().includes(q));
+  document.getElementById('pv-sample-list').innerHTML = list.map(s=>`
+    <label style="display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:12.5px; cursor:pointer;">
+      <input type="checkbox" ${previewDraftSelection.has(s.id)?'checked':''} onchange="togglePreviewSample('${s.id}', this.checked)">
+      <span style="width:30px;height:30px;background:var(--paper-2); flex-shrink:0; overflow:hidden; display:inline-block;">${s.photos[0]?`<img src="${s.photos[0].data}" style="width:100%;height:100%;object-fit:cover;">`:''}</span>
+      <span>${s.code} — ${s.dept} · ${s.subcat}</span>
+    </label>`).join('') || `<p style="font-size:12px; color:var(--muted);">No samples match.</p>`;
+}
+function togglePreviewSample(id, checked){
+  if(checked) previewDraftSelection.add(id); else previewDraftSelection.delete(id);
+}
+async function createPreview(){
+  const name = document.getElementById('pv-name').value.trim();
+  if(!name) return alert('Give the link a name.');
+  if(previewDraftSelection.size===0) return alert('Select at least one sample.');
+  const pv = {
+    id:'pv'+Date.now(), name, buyer: document.getElementById('pv-buyer').value.trim(),
+    sampleIds:[...previewDraftSelection],
+    fields:{
+      photos: document.getElementById('pv-f-photos').checked,
+      buyer: document.getElementById('pv-f-buyer').checked,
+      fabrication: document.getElementById('pv-f-fabrication').checked,
+      condition: document.getElementById('pv-f-condition').checked,
+      tags: document.getElementById('pv-f-tags').checked,
+      factory: document.getElementById('pv-f-factory').checked,
+      qty: document.getElementById('pv-f-qty').checked
+    },
+    createdBy: state.currentUser.name, createdByRole: state.currentUser.role,
+    createdDate: new Date().toISOString().slice(0,10)
+  };
+  state.previews.push(pv);
+  await savePreviewsList();
+  closeModal('modal-preview-create');
+  toast('Preview link created.');
+  render();
+}
+async function copyPreviewLink(id){
+  const link = previewLinkUrl(id);
+  try{ await navigator.clipboard.writeText(link); toast('Link copied to clipboard.'); }
+  catch(e){ prompt('Copy this link:', link); }
+}
+async function deletePreview(id){
+  const pv = state.previews.find(p=>p.id===id);
+  if(!pv) return;
+  if(!canDeletePreview(pv)){
+    toast(`Only ${pv.createdBy} or a Super Admin can delete this link.`, 'error');
+    return;
+  }
+  if(!confirm('Delete this preview link? It will stop working immediately.')) return;
+  state.previews = state.previews.filter(p=>p.id!==id);
+  await savePreviewsList(); render();
+}
+
+/* ---- Public preview (no login) ---- */
+function renderPublicPreview(id){
+  document.getElementById('login-screen').style.display='none';
+  const container = document.getElementById('public-preview');
+  container.classList.remove('hidden');
+  const pv = state.previews.find(p=>p.id===id);
+  if(!pv){
+    container.innerHTML = `<div style="max-width:600px; margin:100px auto; text-align:center; padding:0 20px;">
+      <h2 style="font-family:var(--serif); color:var(--ink);">Link not found</h2>
+      <p style="color:var(--muted); font-size:13.5px; margin-top:8px;">This preview link may have been removed by its creator.</p>
+    </div>`;
+    return;
+  }
+  const items = pv.sampleIds.map(sid=>state.samples.find(s=>s.id===sid)).filter(Boolean);
+  const f = pv.fields||{};
+  container.innerHTML = `
+    <div style="background:var(--ink); color:#fff; padding:26px 40px;">
+      <div style="font-family:var(--serif); font-size:21px; font-weight:600;">${pv.name}</div>
+      <div style="font-size:12.5px; color:#B4A9A4; margin-top:5px;">Standard Group — Sample Preview${pv.buyer? ' for '+pv.buyer:''}</div>
+    </div>
+    <div style="max-width:1200px; margin:0 auto; padding:32px 40px 60px;">
+      ${items.length===0? `<p style="color:var(--muted);">No samples in this preview.</p>` : `<div class="grid">${items.map(s=>`
+        <div class="card" style="cursor:default;">
+          <div class="thumb">${(f.photos!==false && s.photos[0])?`<img src="${s.photos[0].data}">`:`<div class="ph">${s.subcat}</div>`}</div>
+          <div class="body">
+            <div class="code">${s.code}</div>
+            <div class="meta">${s.dept} · ${s.subcat}
+              ${f.factory!==false? `<br>Factory: ${s.homeFactory}`:''}
+              ${f.buyer!==false && s.buyer? `<br>Buyer: ${s.buyer}`:''}
+              ${f.fabrication!==false && s.fabrication? `<br>${s.fabrication}`:''}
+              ${f.condition!==false && s.condition? `<br>Condition: ${s.condition}`:''}
+            </div>
+            ${f.tags!==false && s.tags && s.tags.length? `<div class="chip-list" style="margin-top:8px;">${s.tags.map(t=>`<div class="chip">${t}</div>`).join('')}</div>`:''}
+            ${f.qty!==false? `<span class="badge instock" style="margin-top:8px;">${availableQty(s)} of ${s.qty||1} available</span>`:''}
+          </div>
+        </div>`).join('')}</div>`}
+    </div>`;
+}
+
 /* ---- All department photos (visual catalog across Men's/Women's/Kids') ---- */
 function renderPhotoWall(main){
   const samples = visibleSamples().filter(s=>s.photos.length>0);
   const byDept = {};
   samples.forEach(s=>{ (byDept[s.dept] = byDept[s.dept]||[]).push(s); });
   const depts = Object.keys(state.categoryTree);
-  main.innerHTML = `<div class="topbar"><div><h1>All department photos</h1><p class="sub">Every photographed sample, grouped by department</p></div></div>
+  main.innerHTML = `<div class="topbar">
+    <div><h1>All department photos</h1><p class="sub">Every photographed sample, grouped by department</p></div>
+    <button class="btn solid" onclick="exportLookbookPDF()" ${samples.length===0?'disabled':''}>⬇ Export PDF lookbook</button>
+  </div>
   ${samples.length===0? `<div class="empty"><p class="big">No photos uploaded yet</p></div>` :
   depts.filter(d=>byDept[d] && byDept[d].length).map(d=>`
     <div class="section-label" style="font-size:15px; text-transform:none; letter-spacing:0; font-family:var(--serif); color:var(--ink); margin-top:28px;">${d} <span style="font-size:11px; color:var(--muted); font-family:var(--sans);">${byDept[d].length} sample${byDept[d].length===1?'':'s'}</span></div>
     <div class="grid">${byDept[d].map(s=>sampleCard(s,false,false)).join('')}</div>
   `).join('')}`;
+}
+async function exportLookbookPDF(){
+  if(typeof window.jspdf==='undefined'){ toast('PDF library failed to load — check your internet connection.', 'error'); return; }
+  const samples = visibleSamples().filter(s=>s.photos.length>0);
+  if(samples.length===0) return;
+  toast('Building PDF — this can take a moment for many photos…');
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'mm', format:'a4' });
+  const pageW = 210, marginX = 15, rowH = 42, thumbSize = 34;
+  let y = 20;
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('Standard Group — Sample Lookbook', marginX, y);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(120);
+  y += 6;
+  doc.text(`Generated ${new Date().toISOString().slice(0,10)} · ${samples.length} samples`, marginX, y);
+  doc.setTextColor(0);
+  y += 10;
+
+  for(const s of samples){
+    if(y + rowH > 285){ doc.addPage(); y = 20; }
+    let imgOk = false;
+    try{
+      const dataUrl = await imageToDataUrl(s.photos[0].data);
+      if(dataUrl){ doc.addImage(dataUrl, 'JPEG', marginX, y, thumbSize, thumbSize); imgOk = true; }
+    }catch(e){ /* fall through to placeholder */ }
+    if(!imgOk){
+      doc.setDrawColor(220); doc.rect(marginX, y, thumbSize, thumbSize);
+      doc.setFontSize(7); doc.setTextColor(160);
+      doc.text('No image', marginX + thumbSize/2, y + thumbSize/2, { align:'center' });
+      doc.setTextColor(0);
+    }
+    const tx = marginX + thumbSize + 8;
+    doc.setFont('helvetica','bold'); doc.setFontSize(11);
+    doc.text(s.code, tx, y + 6);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(90);
+    doc.text(`${s.dept} · ${s.cat} · ${s.subcat}`, tx, y + 12);
+    let line3 = [];
+    if(s.buyer) line3.push('Buyer: '+s.buyer);
+    if(s.fabrication) line3.push(s.fabrication);
+    if(line3.length) doc.text(line3.join('  ·  '), tx, y + 18);
+    let line4 = [];
+    line4.push('Factory: '+s.homeFactory);
+    if(s.condition) line4.push('Condition: '+s.condition);
+    if(s.tags && s.tags.length) line4.push(s.tags.join(', '));
+    doc.text(line4.join('  ·  '), tx, y + 24);
+    doc.setTextColor(0);
+    doc.setDrawColor(230); doc.line(marginX, y+rowH-4, pageW-marginX, y+rowH-4);
+    y += rowH;
+  }
+  doc.save('Standard-Group-Lookbook-' + new Date().toISOString().slice(0,10) + '.pdf');
+  toast('PDF downloaded.');
+}
+function imageToDataUrl(src){
+  return new Promise((resolve)=>{
+    if(src.startsWith('data:')){ resolve(src); return; } // already base64 (demo mode)
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = ()=>{
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img,0,0);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      }catch(e){ resolve(null); } // CORS-tainted canvas — skip image, keep going
+    };
+    img.onerror = ()=> resolve(null);
+    img.src = src;
+  });
 }
 
 /* ---- Activity log (accountability, visible to everyone) ---- */
@@ -1194,14 +1579,52 @@ function renderActivity(main){
 }
 
 /* ---- Overview (director) ---- */
+let chartInstances = [];
 function renderOverview(main){
   const samples = state.samples;
-  main.innerHTML = `<div class="topbar"><div><h1>Overview</h1><p class="sub">Read-only view across all factories</p></div></div>
+  chartInstances.forEach(c=>c.destroy()); chartInstances = [];
+
+  main.innerHTML = `<div class="topbar"><div><h1>${state.currentUser.role==='director'?'Overview':'Dashboard'}</h1><p class="sub">Activity across all factories</p></div></div>
   ${statRow(samples)}
   <div class="grid">${state.factories.map(f=>{
     const fs = samples.filter(s=>s.currentLocation===f);
     return `<div class="stat-card"><div class="n">${fs.length}</div><div class="l">${f} — ${fs.filter(s=>availableQty(s)>0).length} in showroom</div></div>`;
-  }).join('')}</div>`;
+  }).join('')}</div>
+  <div class="row2" style="margin-top:28px; align-items:start;">
+    <div class="stat-card"><div class="l" style="margin-bottom:12px; font-weight:600;">Samples by department</div><canvas id="chart-dept" height="220"></canvas></div>
+    <div class="stat-card"><div class="l" style="margin-bottom:12px; font-weight:600;">Hand-overs by reason</div><canvas id="chart-reason" height="220"></canvas></div>
+  </div>
+  <div class="stat-card" style="margin-top:16px;"><div class="l" style="margin-bottom:12px; font-weight:600;">Top buyers by pieces taken</div><canvas id="chart-buyers" height="180"></canvas></div>
+  `;
+  if(typeof Chart==='undefined') return; // library failed to load (e.g. offline) — page still works without charts
+
+  // Samples by department
+  const deptCounts = {};
+  samples.forEach(s=>{ deptCounts[s.dept] = (deptCounts[s.dept]||0)+1; });
+  chartInstances.push(new Chart(document.getElementById('chart-dept'), {
+    type:'bar',
+    data:{ labels:Object.keys(deptCounts), datasets:[{ label:'Samples', data:Object.values(deptCounts), backgroundColor:'#9E1B24' }] },
+    options:{ plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true, ticks:{precision:0}}} }
+  }));
+
+  // Hand-overs by reason (from full history, so returned items still count)
+  const reasonCounts = {};
+  samples.forEach(s=> (s.history||[]).forEach(h=>{ if(h.type==='checkout') reasonCounts[h.reason] = (reasonCounts[h.reason]||0)+1; }));
+  chartInstances.push(new Chart(document.getElementById('chart-reason'), {
+    type:'doughnut',
+    data:{ labels:Object.keys(reasonCounts), datasets:[{ data:Object.values(reasonCounts), backgroundColor:['#9E1B24','#B08A4E','#6E1119','#D8CFCB','#221B19'] }] },
+    options:{ plugins:{legend:{position:'bottom'}} }
+  }));
+
+  // Top buyers by pieces taken (from full history so it includes returned items too)
+  const buyerCounts = {};
+  samples.forEach(s=> (s.history||[]).forEach(h=>{ if(h.type==='checkout' && h.buyer) buyerCounts[h.buyer] = (buyerCounts[h.buyer]||0) + (h.qty||1); }));
+  const topBuyers = Object.entries(buyerCounts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  chartInstances.push(new Chart(document.getElementById('chart-buyers'), {
+    type:'bar',
+    data:{ labels:topBuyers.map(x=>x[0]), datasets:[{ label:'Pieces taken', data:topBuyers.map(x=>x[1]), backgroundColor:'#B08A4E' }] },
+    options:{ indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true, ticks:{precision:0}}} }
+  }));
 }
 
 /* ---- Users (super admin) ---- */
@@ -1697,6 +2120,9 @@ function renderDetail(){
       <div class="field" style="width:100%; margin-top:14px;"><label>Update condition</label>
       <div style="display:flex; gap:8px;"><select id="dt-condition-edit" style="max-width:160px;">${state.conditionTags.map(t=>`<option value="${t}" ${t===s.condition?'selected':''}>${t}</option>`).join('')}</select>
       <button class="btn small" onclick="updateCondition('${s.id}')">Save</button></div></div>`;
+  }
+  if(role==='merchandiser' || role==='designer' || role==='director'){
+    actions += `<button class="btn small" onclick="openShortlistPicker('${s.id}')">☆ Add to shortlist</button>`;
   }
   document.getElementById('dt-actions').innerHTML = actions;
 
