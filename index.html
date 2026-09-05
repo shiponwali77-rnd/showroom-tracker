@@ -6,7 +6,7 @@
 <title>Standard Group — Showroom Sample Tracker</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js" onerror="this.onerror=null; var s=document.createElement('script'); s.src='https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.js'; document.head.appendChild(s);"></script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#9E1B24">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -1454,7 +1454,13 @@ async function deletePreview(id){
   await savePreviewsList(); render();
 }
 async function exportPreviewPPT(id){
-  if(typeof PptxGenJS==='undefined'){ toast('PPT library failed to load — check your internet connection.', 'error'); return; }
+  if(typeof PptxGenJS==='undefined'){
+    await new Promise(r=>setTimeout(r, 1200)); // library may still be loading
+    if(typeof PptxGenJS==='undefined'){
+      toast('PPT library failed to load — check your internet connection and try again.', 'error');
+      return;
+    }
+  }
   const pv = state.previews.find(p=>p.id===id);
   const items = pv.sampleIds.map(sid=>state.samples.find(s=>s.id===sid)).filter(Boolean);
   if(items.length===0){ toast('This preview has no samples to export.', 'error'); return; }
