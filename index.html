@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Standard Group — Showroom Sample Tracker</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#9E1B24">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -173,6 +177,9 @@
   .toggle-row{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--paper-2); border-radius:2px; margin-bottom:18px; }
   .toggle-row span{ font-size:13px; font-weight:500; }
   .switch{ position:relative; width:42px; height:24px; background:#D8CFCB; border-radius:12px; cursor:pointer; transition:background .15s; flex-shrink:0; }
+  .switch.small-switch{ width:32px; height:18px; }
+  .switch.small-switch::after{ width:14px; height:14px; }
+  .switch.small-switch.on::after{ transform:translateX(14px); }
   .switch.on{ background: var(--red); }
   .switch::after{ content:""; position:absolute; top:2px; left:2px; width:20px;height:20px; background:#fff; border-radius:50%; transition:transform .15s; }
   .switch.on::after{ transform:translateX(18px); }
@@ -346,10 +353,6 @@
       <div class="field"><label>Password</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"></div>
       <button class="btn-primary" onclick="attemptLogin()">Sign in</button>
       <div class="login-error" id="login-error">Incorrect username or password.</div>
-      <div class="demo-note">
-        <b>Demo accounts</b> (password = username):<br>
-        superadmin · director · showroomcet · showroomitsl · merchandiser1 · designer1
-      </div>
     </div>
   </div>
 </div>
@@ -433,7 +436,7 @@
         <div class="field"><label>Quantity (pieces)</label><input type="number" id="f-qty" min="1" value="1"></div>
       </div>
       <div class="row2">
-        <div class="field"><label>Buyer / Brand (optional)</label><input type="text" id="f-buyer" placeholder="e.g. H&amp;M"></div>
+        <div class="field" id="field-buyer-wrap"><label>Buyer / Brand (optional)</label><input type="text" id="f-buyer" placeholder="e.g. H&amp;M"></div>
         <div class="field"><label>Entry date</label><input type="date" id="f-date"></div>
       </div>
       <div class="row2">
@@ -444,8 +447,12 @@
         <div class="field"><label>Category</label><select id="f-cat" onchange="populateModalSubcats()"></select></div>
         <div class="field"><label>Style</label><select id="f-subcat"></select></div>
       </div>
-      <div class="field"><label>Fabrication (optional)</label><input type="text" id="f-fabrication" placeholder="e.g. 97% Cotton, 3% Spandex"></div>
+      <div class="row2">
+        <div class="field" id="field-fabrication-wrap"><label>Fabrication (optional)</label><input type="text" id="f-fabrication" placeholder="e.g. 97% Cotton, 3% Spandex"></div>
+        <div class="field"><label>Condition</label><select id="f-condition"></select></div>
+      </div>
       <div class="field"><label>Embellishments / Tags</label><div class="chip-list" id="f-tags"></div></div>
+      <div id="f-custom-fields"></div>
     </div>
     <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="saveSample()">Save to showroom</button></div>
   </div>
@@ -489,10 +496,6 @@
       </div>
       <div class="field"><label>Taking it to (destination)</label><input type="text" id="co-destination" placeholder="e.g. Buyer office"></div>
       <div class="field"><label>Merchandiser email — for proof sheet (optional)</label><input type="text" id="co-email" placeholder="name@company.com"></div>
-      <div class="toggle-row">
-        <span>Returnable — must come back</span>
-        <div class="switch on" id="co-returnable" onclick="this.classList.toggle('on')"></div>
-      </div>
     </div>
     <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="confirmCheckout()">Confirm hand-over</button></div>
   </div>
@@ -565,7 +568,7 @@
 
 <script>
 /* ============ DEFAULT DATA ============ */
-const FACTORIES = ["CET","ITSL","SDL","TCESL"];
+const DEFAULT_FACTORIES = ["CET","ITSL","SDL","TCESL"];
 const REASONS = ["Development","Design","Meeting","Gift","Other"];
 const PHOTO_LABELS = ["Front","Back","Side","Close-up","Extra"];
 
@@ -616,6 +619,20 @@ function availableQty(s){
   const taken = (s.checkouts||[]).reduce((sum,c)=>sum+(c.qty||1),0);
   return Math.max((s.qty||1) - taken, 0);
 }
+const OVERDUE_DAYS = 7;
+function daysSince(dateStr){
+  const then = new Date(dateStr+'T00:00:00');
+  const now = new Date();
+  return Math.floor((now - then) / (1000*60*60*24));
+}
+function isOverdue(checkout){
+  return checkout.returnable && daysSince(checkout.date) > OVERDUE_DAYS;
+}
+function countOverdue(){
+  let n = 0;
+  state.samples.forEach(s=> (s.checkouts||[]).forEach(c=>{ if(isOverdue(c)) n++; }));
+  return n;
+}
 
 /* ============ BACKEND CONFIG ============ */
 // Paste your deployed Google Apps Script Web App URL between the quotes below.
@@ -661,7 +678,8 @@ function toast(msg, type){
 
 /* ============ STATE ============ */
 let state = {
-  users: {}, samples: [], requests: [], categoryTree: {}, tagList: [],
+  users: {}, samples: [], requests: [], categoryTree: {}, tagList: [], factories: [],
+  conditionTags: [], customFields: [], fieldVisibility: {},
   currentUser: null,
   filterFactory: "all", filterDept: null, filterCat: null,
   navView: "gallery", selection: new Set(),
@@ -672,6 +690,8 @@ let pendingTags = [];
 let detailSampleId = null;
 let detailPhotoIndex = 0;
 const DEFAULT_TAGS = ["Stone Attached","Stud","Embroidery","Print"];
+const DEFAULT_CONDITION_TAGS = ["Good","Damaged","Faded"];
+const DEFAULT_FIELD_VISIBILITY = { buyer:true, fabrication:true };
 
 async function loadData(){
   if(backendConnected()){
@@ -682,6 +702,10 @@ async function loadData(){
       state.requests = data.requests || [];
       state.categoryTree = data.categoryTree || JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE));
       state.tagList = data.tagList && data.tagList.length ? data.tagList : [...DEFAULT_TAGS];
+      state.factories = data.factories && data.factories.length ? data.factories : [...DEFAULT_FACTORIES];
+      state.conditionTags = data.conditionTags && data.conditionTags.length ? data.conditionTags : [...DEFAULT_CONDITION_TAGS];
+      state.customFields = data.customFields || [];
+      state.fieldVisibility = data.fieldVisibility || {...DEFAULT_FIELD_VISIBILITY};
       return;
     }catch(e){
       alert('Could not reach the Google Sheet backend. Check your internet connection or the deployment URL. Falling back to local demo data for now.');
@@ -692,6 +716,10 @@ async function loadData(){
   try{ const r = await window.storage.get('sst:requests', true); state.requests = r? JSON.parse(r.value): []; }catch(e){ state.requests = []; }
   try{ const c = await window.storage.get('sst:categories', true); state.categoryTree = c? JSON.parse(c.value): JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE)); }catch(e){ state.categoryTree = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_TREE)); }
   try{ const t = await window.storage.get('sst:tags', true); state.tagList = t? JSON.parse(t.value): [...DEFAULT_TAGS]; }catch(e){ state.tagList = [...DEFAULT_TAGS]; }
+  try{ const fa = await window.storage.get('sst:factories', true); state.factories = fa? JSON.parse(fa.value): [...DEFAULT_FACTORIES]; }catch(e){ state.factories = [...DEFAULT_FACTORIES]; }
+  try{ const ct = await window.storage.get('sst:conditionTags', true); state.conditionTags = ct? JSON.parse(ct.value): [...DEFAULT_CONDITION_TAGS]; }catch(e){ state.conditionTags = [...DEFAULT_CONDITION_TAGS]; }
+  try{ const cf = await window.storage.get('sst:customFields', true); state.customFields = cf? JSON.parse(cf.value): []; }catch(e){ state.customFields = []; }
+  try{ const fv = await window.storage.get('sst:fieldVisibility', true); state.fieldVisibility = fv? JSON.parse(fv.value): {...DEFAULT_FIELD_VISIBILITY}; }catch(e){ state.fieldVisibility = {...DEFAULT_FIELD_VISIBILITY}; }
 }
 async function saveUsers(){
   if(backendConnected()){ try{ await apiPost('saveUsers', state.users); }catch(e){ toast('Could not save accounts to Google Sheet: '+e.message, 'error'); } return; }
@@ -713,6 +741,22 @@ async function saveTagList(){
   if(backendConnected()){ try{ await apiPost('saveTagList', state.tagList); }catch(e){ toast('Could not save tags to Google Sheet: '+e.message, 'error'); } return; }
   try{ await window.storage.set('sst:tags', JSON.stringify(state.tagList), true); }catch(e){}
 }
+async function saveFactoriesList(){
+  if(backendConnected()){ try{ await apiPost('saveFactories', state.factories); }catch(e){ toast('Could not save factories to Google Sheet: '+e.message, 'error'); } return; }
+  try{ await window.storage.set('sst:factories', JSON.stringify(state.factories), true); }catch(e){}
+}
+async function saveConditionTagsList(){
+  if(backendConnected()){ try{ await apiPost('saveConditionTags', state.conditionTags); }catch(e){ toast('Could not save condition tags: '+e.message, 'error'); } return; }
+  try{ await window.storage.set('sst:conditionTags', JSON.stringify(state.conditionTags), true); }catch(e){}
+}
+async function saveCustomFieldsList(){
+  if(backendConnected()){ try{ await apiPost('saveCustomFields', state.customFields); }catch(e){ toast('Could not save custom fields: '+e.message, 'error'); } return; }
+  try{ await window.storage.set('sst:customFields', JSON.stringify(state.customFields), true); }catch(e){}
+}
+async function saveFieldVisibilitySettings(){
+  if(backendConnected()){ try{ await apiPost('saveFieldVisibility', state.fieldVisibility); }catch(e){ toast('Could not save field settings: '+e.message, 'error'); } return; }
+  try{ await window.storage.set('sst:fieldVisibility', JSON.stringify(state.fieldVisibility), true); }catch(e){}
+}
 
 
 /* ============ AUTH ============ */
@@ -731,6 +775,9 @@ async function initApp(){
   }
 }
 window.addEventListener('DOMContentLoaded', initApp);
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
 
 async function attemptLogin(){
   const u = document.getElementById('login-user').value.trim();
@@ -782,6 +829,9 @@ function initShell(){
     items.push({id:'gallery', label:'All samples'});
   }
   items.push({id:'dispatched', label:'Dispatched items'});
+  if(role==='showroom' || role==='superadmin' || role==='director'){
+    items.push({id:'overdue', label:'Overdue returns', badge: countOverdue()||''});
+  }
   items.push({id:'photowall', label:'All department photos'});
   items.push({id:'activity', label:'Activity log'});
   if(role==='superadmin'){
@@ -804,7 +854,7 @@ function initShell(){
   } else {
     factoryGroup.style.display='block';
     factoryList.innerHTML='';
-    const opts = ["All factories", ...FACTORIES];
+    const opts = ["All factories", ...state.factories];
     opts.forEach(f=>{
       const val = f==="All factories" ? "all" : f;
       const d = document.createElement('div');
@@ -855,6 +905,7 @@ function render(){
   if(state.navView==='myrequests'){ renderMyRequests(main); return; }
   if(state.navView==='overview'){ renderOverview(main); return; }
   if(state.navView==='dispatched'){ renderDispatched(main); return; }
+  if(state.navView==='overdue'){ renderOverdue(main); return; }
   if(state.navView==='photowall'){ renderPhotoWall(main); return; }
   if(state.navView==='activity'){ renderActivity(main); return; }
   renderGallery(main);
@@ -920,7 +971,7 @@ function renderGrid(samples, canAdd, canSelect){
   const statusF = document.getElementById('status-filter')?.value || 'all';
   let filtered = samples.filter(s=>{
     if(q){
-      const haystack = [s.code, s.subcat, s.cat, s.dept, s.homeFactory, s.buyer, s.fabrication, ...(s.tags||[]), ...(s.checkouts||[]).map(c=>c.buyer)]
+      const haystack = [s.code, s.subcat, s.cat, s.dept, s.homeFactory, s.buyer, s.fabrication, s.condition, ...(s.tags||[]), ...(s.customFieldValues||[]).map(cf=>cf.value), ...(s.checkouts||[]).map(c=>c.buyer)]
         .filter(Boolean).join(' ').toLowerCase();
       if(!haystack.includes(q)) return false;
     }
@@ -980,6 +1031,9 @@ function renderCheckoutItems(items){
     return `<div class="co-item-row" data-sample-id="${s.id}" data-max="${max}">
       <div class="ci-name"><b>${s.code}</b><span>${s.dept} · ${s.subcat} — ${max} of ${s.qty||1} available</span></div>
       <input type="number" min="1" max="${max}" value="1" class="co-qty-input">
+      <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer; white-space:nowrap;">
+        <div class="switch on small-switch co-returnable-toggle" onclick="this.classList.toggle('on')"></div> Returnable
+      </label>
     </div>`;
   }).join('');
 }
@@ -994,7 +1048,6 @@ function openBulkHandover(){
   document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
   document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
   document.getElementById('co-buyer').value= items.length===1 ? (items[0].buyer||'') : ''; document.getElementById('co-email').value='';
-  document.getElementById('co-returnable').classList.add('on');
   document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify(items.map(s=>s.id));
   document.getElementById('modal-checkout').dataset.requestId = '';
   openModal('modal-checkout');
@@ -1057,7 +1110,6 @@ function openFulfill(reqId){
   document.getElementById('co-reason').value = r.reason;
   document.getElementById('co-buyer').value = r.buyer || '';
   document.getElementById('co-email').value = '';
-  document.getElementById('co-returnable').classList.add('on');
   document.getElementById('modal-checkout').dataset.sampleIds = '';
   document.getElementById('modal-checkout').dataset.requestId = reqId;
   openModal('modal-checkout');
@@ -1080,6 +1132,29 @@ function renderDispatched(main){
         <div class="code">${s.code} <span style="color:var(--muted); font-weight:400;">(${c.qty} pc${c.qty===1?'':'s'})</span></div>
         <div class="meta">${s.homeFactory} · With ${c.name}<br>${c.destination} · ${c.reason}${c.buyer? ' · '+c.buyer:''}</div>
         <span class="badge out">${c.returnable? 'Returnable':'Non-returnable'}</span>
+        ${isOverdue(c)? `<span class="badge" style="background:#3d1113; color:#ff9c9c;">Overdue ${daysSince(c.date)}d</span>`:''}
+      </div>
+    </div>`).join('')}</div>`}`;
+}
+
+function renderOverdue(main){
+  const role = state.currentUser.role;
+  let rows = [];
+  state.samples.forEach(s=>{
+    (s.checkouts||[]).forEach(c=>{
+      if(isOverdue(c) && (role!=='showroom' || s.currentLocation===state.currentUser.factory)) rows.push({ sample:s, checkout:c });
+    });
+  });
+  rows.sort((a,b)=> daysSince(b.checkout.date) - daysSince(a.checkout.date));
+  main.innerHTML = `<div class="topbar"><div><h1>Overdue returns</h1><p class="sub">Returnable samples out for more than ${OVERDUE_DAYS} days</p></div></div>
+  ${rows.length===0? `<div class="empty"><p class="big">Nothing overdue — nice and clean</p></div>` :
+  `<div class="grid">${rows.map(({sample:s,checkout:c})=>`
+    <div class="card" onclick="openDetail('${s.id}')">
+      <div class="thumb">${s.photos[0]?`<img src="${s.photos[0].data}">`:`<div class="ph">${s.subcat}</div>`}</div>
+      <div class="body">
+        <div class="code">${s.code} <span style="color:var(--muted); font-weight:400;">(${c.qty} pc${c.qty===1?'':'s'})</span></div>
+        <div class="meta">${s.homeFactory} · With ${c.name} (ID ${c.idCard})<br>${c.destination} · ${c.reason}${c.buyer? ' · '+c.buyer:''}</div>
+        <span class="badge" style="background:#3d1113; color:#ff9c9c;">Overdue ${daysSince(c.date)} days — since ${c.date}</span>
       </div>
     </div>`).join('')}</div>`}`;
 }
@@ -1123,7 +1198,7 @@ function renderOverview(main){
   const samples = state.samples;
   main.innerHTML = `<div class="topbar"><div><h1>Overview</h1><p class="sub">Read-only view across all factories</p></div></div>
   ${statRow(samples)}
-  <div class="grid">${FACTORIES.map(f=>{
+  <div class="grid">${state.factories.map(f=>{
     const fs = samples.filter(s=>s.currentLocation===f);
     return `<div class="stat-card"><div class="n">${fs.length}</div><div class="l">${f} — ${fs.filter(s=>availableQty(s)>0).length} in showroom</div></div>`;
   }).join('')}</div>`;
@@ -1190,12 +1265,39 @@ async function saveUser(){
 /* ---- Categories (super admin) ---- */
 function renderCategories(main){
   const tree = state.categoryTree;
-  main.innerHTML = `<div class="topbar"><div><h1>Categories</h1><p class="sub">Manage departments, categories, styles, and embellishment tags</p></div></div>
-    <div class="section-label" style="margin-top:0;">Embellishments / Tags</div>
+  main.innerHTML = `<div class="topbar"><div><h1>Categories</h1><p class="sub">Manage factories, departments, tags, and the Add Sample form</p></div></div>
+
+    <div class="section-label" style="margin-top:0;">Factories</div>
+    <div class="cat-dept-block">
+      <div class="chip-list">${state.factories.map(f=>`<div class="chip" style="cursor:pointer;" onclick="renameFactory('${escAttr(f)}')" title="Click to rename">${f}<span class="x" onclick="event.stopPropagation(); removeFactory('${escAttr(f)}')">×</span></div>`).join('') || '<span style="font-size:12px; color:var(--muted);">No factories yet.</span>'}</div>
+      <div class="mini-add"><input type="text" id="new-factory" placeholder="New factory code (e.g. NPL)"><button onclick="addFactory()">+ Add factory</button></div>
+      <p style="font-size:11.5px; color:var(--muted); margin-top:4px;">Click a factory chip to rename it — updates everywhere it's used.</p>
+    </div>
+
+    <div class="section-label">Embellishments / Tags</div>
     <div class="cat-dept-block">
       <div class="chip-list">${state.tagList.map(t=>`<div class="chip">${t}<span class="x" onclick="removeTag('${escAttr(t)}')">×</span></div>`).join('') || '<span style="font-size:12px; color:var(--muted);">No tags yet.</span>'}</div>
       <div class="mini-add"><input type="text" id="new-tag" placeholder="New tag (e.g. Hand Embroidery)"><button onclick="addTag()">+ Add tag</button></div>
     </div>
+
+    <div class="section-label">Sample Condition Tags</div>
+    <div class="cat-dept-block">
+      <div class="chip-list">${state.conditionTags.map(t=>`<div class="chip">${t}<span class="x" onclick="removeConditionTag('${escAttr(t)}')">×</span></div>`).join('') || '<span style="font-size:12px; color:var(--muted);">No condition tags yet.</span>'}</div>
+      <div class="mini-add"><input type="text" id="new-condition" placeholder="New condition (e.g. Damaged)"><button onclick="addConditionTag()">+ Add condition</button></div>
+    </div>
+
+    <div class="section-label">Add Sample Form — Built-in Fields</div>
+    <div class="cat-dept-block">
+      <div class="toggle-row" style="margin-bottom:10px;"><span>Buyer / Brand field</span><div class="switch ${state.fieldVisibility.buyer?'on':''}" onclick="toggleFieldVisibility('buyer')"></div></div>
+      <div class="toggle-row" style="margin-bottom:0;"><span>Fabrication field</span><div class="switch ${state.fieldVisibility.fabrication?'on':''}" onclick="toggleFieldVisibility('fabrication')"></div></div>
+    </div>
+
+    <div class="section-label">Add Sample Form — Custom Fields</div>
+    <div class="cat-dept-block">
+      <div class="chip-list">${state.customFields.map(f=>`<div class="chip">${f.label}<span class="x" onclick="removeCustomField('${escAttr(f.id)}')">×</span></div>`).join('') || '<span style="font-size:12px; color:var(--muted);">No custom fields yet — add things like Fabric Construction, Weight, Padding, Lining, Source, FOB.</span>'}</div>
+      <div class="mini-add"><input type="text" id="new-custom-field" placeholder="New field label (e.g. FOB)"><button onclick="addCustomField()">+ Add field</button></div>
+    </div>
+
     <div class="section-label">Departments &amp; Styles</div>
     <div class="mini-add"><input type="text" id="new-dept" placeholder="New department name"><button onclick="addDept()">+ Add department</button></div>
     ${Object.keys(tree).map(dept=>`
@@ -1211,6 +1313,30 @@ function renderCategories(main){
       </div>`).join('')}
   `;
 }
+async function addFactory(){
+  const el = document.getElementById('new-factory'); const v = el.value.trim().toUpperCase();
+  if(!v || state.factories.includes(v)) return;
+  state.factories.push(v); await saveFactoriesList(); render();
+}
+async function removeFactory(f){
+  if(!confirm(`Remove factory "${f}"? Samples/accounts already using this name will keep it — this only affects new entries.`)) return;
+  state.factories = state.factories.filter(x=>x!==f);
+  await saveFactoriesList(); render();
+}
+async function renameFactory(oldName){
+  const newName = prompt(`Rename factory "${oldName}" to:`, oldName);
+  if(!newName || !newName.trim() || newName.trim().toUpperCase()===oldName) return;
+  const nn = newName.trim().toUpperCase();
+  state.factories = state.factories.map(f=>f===oldName?nn:f);
+  state.samples.forEach(s=>{
+    if(s.homeFactory===oldName) s.homeFactory=nn;
+    if(s.currentLocation===oldName) s.currentLocation=nn;
+  });
+  Object.values(state.users).forEach(u=>{ if(u.factory===oldName) u.factory=nn; });
+  await saveFactoriesList(); await saveSamples(); await saveUsers();
+  toast(`Factory renamed to ${nn} everywhere.`);
+  render();
+}
 async function addTag(){
   const el = document.getElementById('new-tag'); const v = el.value.trim();
   if(!v || state.tagList.includes(v)) return;
@@ -1219,6 +1345,29 @@ async function addTag(){
 async function removeTag(t){
   state.tagList = state.tagList.filter(x=>x!==t);
   await saveTagList(); render();
+}
+async function addConditionTag(){
+  const el = document.getElementById('new-condition'); const v = el.value.trim();
+  if(!v || state.conditionTags.includes(v)) return;
+  state.conditionTags.push(v); await saveConditionTagsList(); render();
+}
+async function removeConditionTag(t){
+  state.conditionTags = state.conditionTags.filter(x=>x!==t);
+  await saveConditionTagsList(); render();
+}
+async function toggleFieldVisibility(key){
+  state.fieldVisibility[key] = !state.fieldVisibility[key];
+  await saveFieldVisibilitySettings(); render();
+}
+async function addCustomField(){
+  const el = document.getElementById('new-custom-field'); const v = el.value.trim();
+  if(!v) return;
+  state.customFields.push({ id:'cf'+Date.now(), label:v });
+  await saveCustomFieldsList(); render();
+}
+async function removeCustomField(id){
+  state.customFields = state.customFields.filter(f=>f.id!==id);
+  await saveCustomFieldsList(); render();
 }
 function slug(s){ return s.replace(/[^a-z0-9]/gi,''); }
 function escAttr(s){ return s.replace(/'/g,"\\'"); }
@@ -1250,7 +1399,7 @@ async function removeSubcat(d,c,sc){
 }
 
 /* ============ ADD SAMPLE MODAL ============ */
-function populateFactorySelect(sel){ sel.innerHTML = FACTORIES.map(f=>`<option value="${f}">${f}</option>`).join(''); }
+function populateFactorySelect(sel){ sel.innerHTML = state.factories.map(f=>`<option value="${f}">${f}</option>`).join(''); }
 function populateDeptSelect(sel){ sel.innerHTML = Object.keys(state.categoryTree).map(d=>`<option value="${d}">${d}</option>`).join(''); }
 function populateModalCategories(){
   const dept = document.getElementById('f-dept').value;
@@ -1326,6 +1475,12 @@ function openAddModal(){
   document.getElementById('f-buyer').value='';
   document.getElementById('f-fabrication').value='';
   document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('field-buyer-wrap').style.display = state.fieldVisibility.buyer===false ? 'none':'block';
+  document.getElementById('field-fabrication-wrap').style.display = state.fieldVisibility.fabrication===false ? 'none':'block';
+  const condSel = document.getElementById('f-condition');
+  condSel.innerHTML = state.conditionTags.map(t=>`<option value="${t}">${t}</option>`).join('') || `<option value="">—</option>`;
+  const cfHolder = document.getElementById('f-custom-fields');
+  cfHolder.innerHTML = state.customFields.map(f=>`<div class="field"><label>${f.label} (optional)</label><input type="text" id="cf-${f.id}" placeholder="${f.label}"></div>`).join('');
   if(state.currentUser.role==='showroom'){ document.getElementById('f-factory').value = state.currentUser.factory; }
   openModal('modal-add');
 }
@@ -1344,11 +1499,16 @@ async function saveSample(){
   if(!code) return alert('Sample code is required.');
   const factory = document.getElementById('f-factory').value;
   const date = document.getElementById('f-date').value || new Date().toISOString().slice(0,10);
+  const customFieldValues = state.customFields.map(f=>({
+    label: f.label, value: (document.getElementById('cf-'+f.id)?.value||'').trim()
+  })).filter(x=>x.value);
   const s = {
     id: 's'+Date.now(), code,
     qty: Math.max(parseInt(document.getElementById('f-qty').value)||1, 1),
     buyer: document.getElementById('f-buyer').value.trim(),
     fabrication: document.getElementById('f-fabrication').value.trim(),
+    condition: document.getElementById('f-condition').value || '',
+    customFieldValues,
     tags: [...pendingTags],
     dept: document.getElementById('f-dept').value,
     cat: document.getElementById('f-cat').value,
@@ -1384,14 +1544,14 @@ async function confirmCheckout(){
   const reason = document.getElementById('co-reason').value;
   const buyer = document.getElementById('co-buyer').value.trim();
   const email = document.getElementById('co-email').value.trim();
-  const returnable = document.getElementById('co-returnable').classList.contains('on');
   if(!name || !idCard || !destination) return alert('Name, ID card number, and destination are required.');
 
   const itemRows = [...document.querySelectorAll('#co-items .co-item-row')].map(row=>{
     const max = parseInt(row.dataset.max)||1;
-    let qty = parseInt(row.querySelector('input').value)||1;
+    let qty = parseInt(row.querySelector('.co-qty-input').value)||1;
     qty = Math.min(Math.max(qty,1), max);
-    return { sampleId: row.dataset.sampleId, qty };
+    const returnable = row.querySelector('.co-returnable-toggle').classList.contains('on');
+    return { sampleId: row.dataset.sampleId, qty, returnable };
   });
   if(itemRows.length===0) return alert('No items to hand over.');
 
@@ -1399,7 +1559,7 @@ async function confirmCheckout(){
   const now = Date.now();
   const proofRows = [];
 
-  itemRows.forEach(({sampleId, qty})=>{
+  itemRows.forEach(({sampleId, qty, returnable})=>{
     const s = state.samples.find(x=>x.id===sampleId);
     if(!s) return;
     const checkoutId = 'c'+now+Math.random().toString(36).slice(2,7);
@@ -1445,7 +1605,6 @@ function openDirectCheckout(sampleId){
   document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
   document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
   document.getElementById('co-buyer').value = s.buyer||''; document.getElementById('co-email').value='';
-  document.getElementById('co-returnable').classList.add('on');
   document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify([sampleId]);
   document.getElementById('modal-checkout').dataset.requestId = '';
   openModal('modal-checkout');
@@ -1506,17 +1665,20 @@ function renderDetail(){
   document.getElementById('dt-badges').innerHTML = `
     <span class="badge ${avail>0?'instock':'out'}">${avail>0? `${avail} of ${s.qty||1} available` : 'Fully checked out'}</span>
     ${s.currentLocation!==s.homeFactory? `<span class="badge loc">At ${s.currentLocation}</span>`:''}
+    ${s.condition ? `<span class="badge loc">${s.condition}</span>`:''}
     ${(s.tags&&s.tags.length)? s.tags.map(t=>`<span class="badge nr">${t}</span>`).join(''):''}`;
 
   let facts = [
     ['Buyer / Brand', s.buyer || '—'],
     ['Fabrication', s.fabrication || '—'],
+    ['Condition', s.condition || '—'],
     ['Quantity', s.qty||1],
     ['Origin factory', s.homeFactory],
     ['Current location', s.currentLocation],
     ['Entered by', s.enteredBy],
     ['Entry date', s.enteredDate]
   ];
+  (s.customFieldValues||[]).forEach(cf=> facts.push([cf.label, cf.value]));
   document.getElementById('dt-facts').innerHTML = facts.map(f=>`<div class="f"><span>${f[0]}</span><span>${f[1]}</span></div>`).join('');
 
   const canAct = role==='showroom' || role==='superadmin';
@@ -1531,7 +1693,10 @@ function renderDetail(){
     }
     actions += `<div class="field" style="width:100%; margin-top:14px;"><label>Edit quantity</label>
       <div style="display:flex; gap:8px;"><input type="number" id="dt-qty-edit" min="1" value="${s.qty||1}" style="max-width:100px;">
-      <button class="btn small" onclick="updateQty('${s.id}')">Save</button></div></div>`;
+      <button class="btn small" onclick="updateQty('${s.id}')">Save</button></div></div>
+      <div class="field" style="width:100%; margin-top:14px;"><label>Update condition</label>
+      <div style="display:flex; gap:8px;"><select id="dt-condition-edit" style="max-width:160px;">${state.conditionTags.map(t=>`<option value="${t}" ${t===s.condition?'selected':''}>${t}</option>`).join('')}</select>
+      <button class="btn small" onclick="updateCondition('${s.id}')">Save</button></div></div>`;
   }
   document.getElementById('dt-actions').innerHTML = actions;
 
@@ -1540,7 +1705,7 @@ function renderDetail(){
       s.checkouts.map(c=>`
         <div class="req-item" style="margin-top:6px;">
           <div class="req-top"><b>${c.name}</b><span>${c.qty} pc${c.qty===1?'':'s'}</span></div>
-          <div class="req-meta">ID ${c.idCard} · ${c.reason} · ${c.destination}${c.buyer? ' · Buyer: '+c.buyer:''}<br>${c.returnable?'Returnable':'Non-returnable'} · Handed over by ${c.processedBy} on ${c.date}</div>
+          <div class="req-meta">ID ${c.idCard} · ${c.reason} · ${c.destination}${c.buyer? ' · Buyer: '+c.buyer:''}<br>${c.returnable?'Returnable':'Non-returnable'} · Handed over by ${c.processedBy} on ${c.date}${isOverdue(c)? ` · <b style="color:var(--red);">Overdue ${daysSince(c.date)}d</b>`:''}</div>
           ${canAct && c.returnable ? `<button class="btn small solid" onclick="markReturned('${s.id}','${c.id}')">Mark this returned</button>` : (canAct? `<span style="font-size:12px; color:var(--muted);">Non-returnable — stays with holder.</span>`:'')}
         </div>`).join('');
   }
@@ -1556,6 +1721,13 @@ async function updateQty(sampleId){
   s.qty = v;
   await saveSamples();
   toast('Quantity updated.');
+  openDetail(sampleId); render();
+}
+async function updateCondition(sampleId){
+  const s = state.samples.find(x=>x.id===sampleId);
+  s.condition = document.getElementById('dt-condition-edit').value;
+  await saveSamples();
+  toast('Condition updated.');
   openDetail(sampleId); render();
 }
 function historyLine(h){
