@@ -470,13 +470,18 @@
     <div class="modal-body">
       <p style="font-size:12.5px; color:var(--muted); margin-bottom:16px;" id="req-summary"></p>
       <div class="row2">
-        <div class="field"><label>Your ID card number</label><input type="text" id="req-id" placeholder="e.g. SG-0452"></div>
+        <div class="field"><label>Your ID card number</label><input type="text" id="req-id" disabled></div>
         <div class="field"><label>Reason</label>
-          <select id="req-reason"><option>Development</option><option>Design</option><option>Meeting</option><option>Gift</option><option>Other</option></select>
+          <select id="req-reason"></select>
         </div>
       </div>
       <div class="field"><label>Where are you taking these?</label><input type="text" id="req-destination" placeholder="e.g. Buyer office, Gulshan"></div>
       <div class="field"><label>Buyer (optional)</label><input type="text" id="req-buyer" placeholder="e.g. H&amp;M"></div>
+      <div class="toggle-row">
+        <span>Returnable — must come back</span>
+        <div class="switch on" id="req-returnable" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <p style="font-size:11.5px; color:var(--muted); margin-top:-10px;">Showroom staff can still adjust this when they hand the samples over.</p>
     </div>
     <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="sendRequest()">Notify showroom staff</button></div>
   </div>
@@ -496,7 +501,7 @@
       <div class="row2">
         <div class="field"><label>Buyer (optional)</label><input type="text" id="co-buyer" placeholder="e.g. H&amp;M"></div>
         <div class="field"><label>Reason</label>
-          <select id="co-reason"><option>Development</option><option>Design</option><option>Meeting</option><option>Gift</option><option>Other</option></select>
+          <select id="co-reason"></select>
         </div>
       </div>
       <div class="field"><label>Taking it to (destination)</label><input type="text" id="co-destination" placeholder="e.g. Buyer office"></div>
@@ -604,6 +609,13 @@
       <div class="row2">
         <div class="field" id="u-factory-field"><label>Assigned factory</label><select id="u-factory"></select></div>
         <div class="field"><label>Title (optional)</label><input type="text" id="u-title" placeholder="e.g. R&amp;D Head"></div>
+      </div>
+      <div class="field"><label>ID card number</label><input type="text" id="u-idcard" placeholder="e.g. SG-0452"></div>
+      <div class="field"><label>Profile photo (optional, small square)</label>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div id="u-avatar-preview" style="width:52px; height:52px; border-radius:50%; overflow:hidden; background:var(--paper-2); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--muted);">None</div>
+          <input type="file" id="u-avatar-input" accept="image/*" onchange="handleAvatarUpload(event)">
+        </div>
       </div>
     </div>
     <div class="modal-foot"><button class="btn solid" style="width:100%; justify-content:center;" onclick="saveUser()">Save account</button></div>
@@ -723,7 +735,7 @@ function toast(msg, type){
 /* ============ STATE ============ */
 let state = {
   users: {}, samples: [], requests: [], categoryTree: {}, tagList: [], factories: [],
-  conditionTags: [], customFields: [], fieldVisibility: {}, shortlists: [], previews: [],
+  conditionTags: [], customFields: [], fieldVisibility: {}, shortlists: [], previews: [], reasonList: [],
   currentUser: null,
   filterFactory: "all", filterDept: null, filterCat: null,
   navView: "gallery", selection: new Set(),
@@ -735,6 +747,7 @@ let detailSampleId = null;
 let detailPhotoIndex = 0;
 const DEFAULT_TAGS = ["Stone Attached","Stud","Embroidery","Print"];
 const DEFAULT_CONDITION_TAGS = ["Good","Damaged","Faded"];
+const DEFAULT_REASONS = ["Development","Design","Meeting","Gift","Other"];
 const DEFAULT_FIELD_VISIBILITY = { buyer:true, fabrication:true };
 
 async function loadData(){
@@ -752,6 +765,7 @@ async function loadData(){
       state.fieldVisibility = data.fieldVisibility || {...DEFAULT_FIELD_VISIBILITY};
       state.shortlists = data.shortlists || [];
       state.previews = data.previews || [];
+      state.reasonList = data.reasonList && data.reasonList.length ? data.reasonList : [...DEFAULT_REASONS];
       return;
     }catch(e){
       alert('Could not reach the Google Sheet backend. Check your internet connection or the deployment URL. Falling back to local demo data for now.');
@@ -768,6 +782,7 @@ async function loadData(){
   try{ const fv = await window.storage.get('sst:fieldVisibility', true); state.fieldVisibility = fv? JSON.parse(fv.value): {...DEFAULT_FIELD_VISIBILITY}; }catch(e){ state.fieldVisibility = {...DEFAULT_FIELD_VISIBILITY}; }
   try{ const sl = await window.storage.get('sst:shortlists', true); state.shortlists = sl? JSON.parse(sl.value): []; }catch(e){ state.shortlists = []; }
   try{ const pv = await window.storage.get('sst:previews', true); state.previews = pv? JSON.parse(pv.value): []; }catch(e){ state.previews = []; }
+  try{ const rl = await window.storage.get('sst:reasons', true); state.reasonList = rl? JSON.parse(rl.value): [...DEFAULT_REASONS]; }catch(e){ state.reasonList = [...DEFAULT_REASONS]; }
 }
 async function saveUsers(){
   if(backendConnected()){ try{ await apiPost('saveUsers', state.users); }catch(e){ toast('Could not save accounts to Google Sheet: '+e.message, 'error'); } return; }
@@ -812,6 +827,13 @@ async function saveShortlistsList(){
 async function savePreviewsList(){
   if(backendConnected()){ try{ await apiPost('savePreviews', state.previews); }catch(e){ toast('Could not save preview links: '+e.message, 'error'); } return; }
   try{ await window.storage.set('sst:previews', JSON.stringify(state.previews), true); }catch(e){}
+}
+async function saveReasonList(){
+  if(backendConnected()){ try{ await apiPost('saveReasons', state.reasonList); }catch(e){ toast('Could not save reasons: '+e.message, 'error'); } return; }
+  try{ await window.storage.set('sst:reasons', JSON.stringify(state.reasonList), true); }catch(e){}
+}
+function populateReasonSelect(sel){
+  sel.innerHTML = state.reasonList.map(r=>`<option value="${r}">${r}</option>`).join('') || `<option value="">—</option>`;
 }
 
 
@@ -871,7 +893,10 @@ function displayTitle(u){ return u.title || roleLabel(u.role); }
 function initShell(){
   document.getElementById('user-name').textContent = state.currentUser.name;
   document.getElementById('user-role').textContent = displayTitle(state.currentUser);
-  document.getElementById('user-avatar').textContent = state.currentUser.name.split(' ').map(x=>x[0]).slice(0,2).join('');
+  const avatarEl = document.getElementById('user-avatar');
+  avatarEl.innerHTML = state.currentUser.avatar
+    ? `<img src="${state.currentUser.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`
+    : state.currentUser.name.split(' ').map(x=>x[0]).slice(0,2).join('');
 
   populateFactorySelect(document.getElementById('f-factory'));
   populateDeptSelect(document.getElementById('f-dept'));
@@ -1003,7 +1028,7 @@ function renderGallery(main){
   const role = state.currentUser.role;
   const samples = visibleSamples();
   const canAdd = role==='showroom' || role==='superadmin';
-  const canSelect = isRequester(role) || role==='showroom' || role==='superadmin';
+  const canSelect = isRequester(role) || role==='superadmin';
   currentGallerySamples = samples; currentGalleryCanAdd = canAdd; currentGalleryCanSelect = canSelect;
 
   main.innerHTML = `
@@ -1102,7 +1127,13 @@ function updateSelectionBar(){
   const role = state.currentUser && state.currentUser.role;
   if(btn) btn.textContent = isRequester(role) ? 'Send request to showroom →' : 'Hand over selected →';
 }
-function renderCheckoutItems(items){
+function clearSelection(){
+  state.selection.clear();
+  updateSelectionBar();
+  if(state.navView==='gallery') renderGallery(document.getElementById('main'));
+}
+function renderCheckoutItems(items, defaultReturnable){
+  const on = defaultReturnable===false ? '' : 'on';
   const holder = document.getElementById('co-items');
   holder.innerHTML = items.map(s=>{
     const max = availableQty(s);
@@ -1110,7 +1141,7 @@ function renderCheckoutItems(items){
       <div class="ci-name"><b>${s.code}</b><span>${s.dept} · ${s.subcat} — ${max} of ${s.qty||1} available</span></div>
       <input type="number" min="1" max="${max}" value="1" class="co-qty-input">
       <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer; white-space:nowrap;">
-        <div class="switch on small-switch co-returnable-toggle" onclick="this.classList.toggle('on')"></div> Returnable
+        <div class="switch ${on} small-switch co-returnable-toggle" onclick="this.classList.toggle('on')"></div> Returnable
       </label>
     </div>`;
   }).join('');
@@ -1120,11 +1151,12 @@ function handleSelectionAction(){
   if(isRequester(role)) openRequestModal(); else openBulkHandover();
 }
 function openBulkHandover(){
+  if(state.currentUser.role!=='superadmin'){ toast('Direct hand-over is disabled — samples must be requested by a merchandiser or designer first.', 'error'); return; }
   const items = [...state.selection].map(id=>state.samples.find(s=>s.id===id));
   document.getElementById('co-title').textContent = `Hand over ${items.length} sample${items.length===1?'':'s'}`;
   renderCheckoutItems(items);
   document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
-  document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
+  document.getElementById('co-destination').value=''; populateReasonSelect(document.getElementById('co-reason'));
   document.getElementById('co-buyer').value= items.length===1 ? (items[0].buyer||'') : ''; document.getElementById('co-email').value='';
   setCheckoutFieldsLocked(false);
   document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify(items.map(s=>s.id));
@@ -1134,20 +1166,25 @@ function openBulkHandover(){
 function openRequestModal(){
   const items = [...state.selection].map(id=>state.samples.find(s=>s.id===id));
   document.getElementById('req-summary').textContent = items.map(s=>s.code).join(', ') + ` — ${items.length} sample${items.length===1?'':'s'}`;
-  document.getElementById('req-id').value=''; document.getElementById('req-destination').value=''; document.getElementById('req-buyer').value='';
+  document.getElementById('req-id').value = state.currentUser.idCard || '(no ID on file — ask Super Admin to set one)';
+  document.getElementById('req-destination').value=''; document.getElementById('req-buyer').value='';
+  populateReasonSelect(document.getElementById('req-reason'));
+  document.getElementById('req-returnable').classList.add('on');
   openModal('modal-request');
 }
 async function sendRequest(){
-  const idCard = document.getElementById('req-id').value.trim();
+  const idCard = state.currentUser.idCard || '';
   const destination = document.getElementById('req-destination').value.trim();
   const reason = document.getElementById('req-reason').value;
   const buyer = document.getElementById('req-buyer').value.trim();
-  if(!idCard || !destination) return alert('ID card number and destination are required.');
+  const returnable = document.getElementById('req-returnable').classList.contains('on');
+  if(!idCard) return alert('Your account has no ID card number on file — ask a Super Admin to add one before requesting samples.');
+  if(!destination) return alert('Destination is required.');
   const items = [...state.selection];
   const factories = [...new Set(items.map(id=>state.samples.find(s=>s.id===id).currentLocation))];
   state.requests.unshift({
     id:'r'+Date.now(), requesterName: state.currentUser.name, requesterRole: state.currentUser.role,
-    idCard, destination, reason, buyer, sampleIds: items, targetFactories: factories,
+    idCard, destination, reason, buyer, returnable, sampleIds: items, targetFactories: factories,
     status:'pending', createdDate: new Date().toISOString().slice(0,10)
   });
   await saveRequests();
@@ -1170,7 +1207,7 @@ function requestCard(r, actionable){
   const items = r.sampleIds.map(id=>state.samples.find(s=>s.id===id)).filter(Boolean);
   return `<div class="req-item">
     <div class="req-top"><b>${r.requesterName}</b><span>${r.status==='pending'?'Pending':'Fulfilled'} · ${r.createdDate}</span></div>
-    <div class="req-meta">ID: ${r.idCard} · Reason: ${r.reason} · Destination: ${r.destination}${r.buyer? ' · Buyer: '+r.buyer:''}</div>
+    <div class="req-meta">ID: ${r.idCard} · Reason: ${r.reason} · Destination: ${r.destination}${r.buyer? ' · Buyer: '+r.buyer:''} · Requested as ${r.returnable===false?'Non-returnable':'Returnable'}</div>
     <div class="req-thumbs">${items.map(s=>`<div class="rt">${s.photos[0]?`<img src="${s.photos[0].data}">`:''}</div>`).join('')}</div>
     <p style="font-size:12.5px; margin-bottom:10px;">${items.map(s=>s.code).join(', ')}</p>
     ${actionable && r.status==='pending' ? `<button class="btn small solid" onclick="openFulfill('${r.id}')">Review &amp; hand over</button>` : ''}
@@ -1196,14 +1233,15 @@ function openFulfill(reqId){
   const r = state.requests.find(x=>x.id===reqId);
   const items = r.sampleIds.map(id=>state.samples.find(s=>s.id===id)).filter(Boolean);
   document.getElementById('co-title').textContent = 'Confirm hand-over';
-  renderCheckoutItems(items);
+  renderCheckoutItems(items, r.returnable);
   document.getElementById('co-name').value = r.requesterName;
   document.getElementById('co-id').value = r.idCard;
   document.getElementById('co-destination').value = r.destination;
+  populateReasonSelect(document.getElementById('co-reason'));
   document.getElementById('co-reason').value = r.reason;
   document.getElementById('co-buyer').value = r.buyer || '';
   document.getElementById('co-email').value = '';
-  setCheckoutFieldsLocked(true, `Set by ${r.requesterName} when requesting — only quantity and returnable status can be adjusted here.`);
+  setCheckoutFieldsLocked(true, `Set by ${r.requesterName} when requesting — you can still change quantity and returnable status per item below.`);
   document.getElementById('modal-checkout').dataset.sampleIds = '';
   document.getElementById('modal-checkout').dataset.requestId = reqId;
   openModal('modal-checkout');
@@ -1774,9 +1812,12 @@ function renderUsers(main){
       <button class="btn solid" onclick="openCreateUser()">+ Create account</button>
     </div>
     <div class="grid">${list.map(([uname,u])=>`
-      <div class="card" onclick="openEditUser('${uname}')"><div class="body">
-        <div class="code">${u.name}</div>
-        <div class="meta">@${uname}<br>${displayTitle(u)}${u.factory? ' · '+u.factory:''}</div>
+      <div class="card" onclick="openEditUser('${uname}')"><div class="body" style="display:flex; gap:12px; align-items:center;">
+        <div style="width:44px; height:44px; border-radius:50%; overflow:hidden; background:var(--paper-2); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:var(--red);">${u.avatar?`<img src="${u.avatar}" style="width:100%;height:100%;object-fit:cover;">`:u.name.split(' ').map(x=>x[0]).slice(0,2).join('')}</div>
+        <div>
+          <div class="code">${u.name}</div>
+          <div class="meta">@${uname}<br>${displayTitle(u)}${u.factory? ' · '+u.factory:''}${u.idCard? ' · ID '+u.idCard:''}</div>
+        </div>
       </div></div>`).join('')}
     </div>`;
 }
@@ -1784,24 +1825,56 @@ function toggleUserFactoryField(){
   const r = document.getElementById('u-role').value;
   document.getElementById('u-factory-field').style.display = r==='showroom' ? 'block':'none';
 }
+let pendingAvatar = null;
+function renderAvatarPreview(){
+  const el = document.getElementById('u-avatar-preview');
+  el.innerHTML = pendingAvatar ? `<img src="${pendingAvatar}" style="width:100%; height:100%; object-fit:cover;">` : 'None';
+}
+function handleAvatarUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      const canvas = document.createElement('canvas');
+      const size = 128;
+      const minDim = Math.min(img.width, img.height);
+      const sx = (img.width-minDim)/2, sy = (img.height-minDim)/2;
+      canvas.width = size; canvas.height = size;
+      canvas.getContext('2d').drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+      pendingAvatar = canvas.toDataURL('image/jpeg', 0.7);
+      renderAvatarPreview();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 function openCreateUser(){
   state.userEditMode = null;
+  pendingAvatar = null;
   document.getElementById('user-modal-title').textContent = 'Create account';
   document.getElementById('u-name').value=''; document.getElementById('u-user').value='';
   document.getElementById('u-pass').value=''; document.getElementById('u-title').value='';
+  document.getElementById('u-idcard').value=''; document.getElementById('u-avatar-input').value='';
   document.getElementById('u-role').value='showroom';
+  renderAvatarPreview();
   toggleUserFactoryField();
   openModal('modal-user');
 }
 function openEditUser(uname){
   const u = state.users[uname];
   state.userEditMode = uname;
+  pendingAvatar = u.avatar || null;
   document.getElementById('user-modal-title').textContent = 'Edit account';
   document.getElementById('u-name').value = u.name;
   document.getElementById('u-user').value = uname;
   document.getElementById('u-pass').value = u.password;
   document.getElementById('u-role').value = u.role;
   document.getElementById('u-title').value = u.title || '';
+  document.getElementById('u-idcard').value = u.idCard || '';
+  document.getElementById('u-avatar-input').value = '';
+  renderAvatarPreview();
   if(u.factory) document.getElementById('u-factory').value = u.factory;
   toggleUserFactoryField();
   openModal('modal-user');
@@ -1815,12 +1888,18 @@ async function saveUser(){
     password: document.getElementById('u-pass').value || 'changeme',
     role,
     factory: role==='showroom' ? document.getElementById('u-factory').value : undefined,
-    title: document.getElementById('u-title').value.trim() || undefined
+    title: document.getElementById('u-title').value.trim() || undefined,
+    idCard: document.getElementById('u-idcard').value.trim() || undefined,
+    avatar: pendingAvatar || undefined
   };
   if(state.userEditMode && state.userEditMode !== newUname){ delete state.users[state.userEditMode]; }
   state.users[newUname] = record;
   await saveUsers();
   closeModal('modal-user');
+  if(state.currentUser && state.currentUser.username===newUname){
+    state.currentUser = { username:newUname, ...record };
+    document.getElementById('user-avatar').innerHTML = record.avatar ? `<img src="${record.avatar}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">` : state.currentUser.name.split(' ').map(x=>x[0]).slice(0,2).join('');
+  }
   render();
 }
 
@@ -1846,6 +1925,13 @@ function renderCategories(main){
     <div class="cat-dept-block">
       <div class="chip-list">${state.conditionTags.map(t=>`<div class="chip">${t}<span class="x" onclick="removeConditionTag('${escAttr(t)}')">×</span></div>`).join('') || '<span style="font-size:12px; color:var(--muted);">No condition tags yet.</span>'}</div>
       <div class="mini-add"><input type="text" id="new-condition" placeholder="New condition (e.g. Damaged)"><button onclick="addConditionTag()">+ Add condition</button></div>
+    </div>
+
+    <div class="section-label">Hand-over Reasons</div>
+    <div class="cat-dept-block">
+      <div class="chip-list">${state.reasonList.map(r=>`<div class="chip" style="cursor:pointer;" onclick="renameReason('${escAttr(r)}')" title="Click to rename">${r}<span class="x" onclick="event.stopPropagation(); removeReason('${escAttr(r)}')">×</span></div>`).join('') || '<span style="font-size:12px; color:var(--muted);">No reasons yet.</span>'}</div>
+      <div class="mini-add"><input type="text" id="new-reason" placeholder="New reason (e.g. Photoshoot)"><button onclick="addReason()">+ Add reason</button></div>
+      <p style="font-size:11.5px; color:var(--muted); margin-top:4px;">Click a reason chip to rename it.</p>
     </div>
 
     <div class="section-label">Add Sample Form — Built-in Fields</div>
@@ -1916,6 +2002,24 @@ async function addConditionTag(){
 async function removeConditionTag(t){
   state.conditionTags = state.conditionTags.filter(x=>x!==t);
   await saveConditionTagsList(); render();
+}
+async function addReason(){
+  const el = document.getElementById('new-reason'); const v = el.value.trim();
+  if(!v || state.reasonList.includes(v)) return;
+  state.reasonList.push(v); await saveReasonList(); render();
+}
+async function removeReason(r){
+  if(!confirm(`Remove reason "${r}"?`)) return;
+  state.reasonList = state.reasonList.filter(x=>x!==r);
+  await saveReasonList(); render();
+}
+async function renameReason(oldName){
+  const newName = prompt(`Rename reason "${oldName}" to:`, oldName);
+  if(!newName || !newName.trim() || newName.trim()===oldName) return;
+  state.reasonList = state.reasonList.map(r=>r===oldName?newName.trim():r);
+  await saveReasonList();
+  toast(`Reason renamed to "${newName.trim()}".`);
+  render();
 }
 async function toggleFieldVisibility(key){
   state.fieldVisibility[key] = !state.fieldVisibility[key];
@@ -2161,11 +2265,12 @@ async function confirmCheckout(){
   render();
 }
 function openDirectCheckout(sampleId){
+  if(state.currentUser.role!=='superadmin'){ toast('Direct hand-over is disabled — samples must be requested by a merchandiser or designer first.', 'error'); return; }
   const s = state.samples.find(x=>x.id===sampleId);
   document.getElementById('co-title').textContent = 'Hand over sample';
   renderCheckoutItems([s]);
   document.getElementById('co-name').value=''; document.getElementById('co-id').value='';
-  document.getElementById('co-destination').value=''; document.getElementById('co-reason').value='Development';
+  document.getElementById('co-destination').value=''; populateReasonSelect(document.getElementById('co-reason'));
   document.getElementById('co-buyer').value = s.buyer||''; document.getElementById('co-email').value='';
   setCheckoutFieldsLocked(false);
   document.getElementById('modal-checkout').dataset.sampleIds = JSON.stringify([sampleId]);
@@ -2245,9 +2350,10 @@ function renderDetail(){
   document.getElementById('dt-facts').innerHTML = facts.map(f=>`<div class="f"><span>${f[0]}</span><span>${f[1]}</span></div>`).join('');
 
   const canAct = role==='showroom' || role==='superadmin';
+  const canDirectHandover = role==='superadmin';
   let actions = '';
   if(canAct){
-    if(avail>0){
+    if(avail>0 && canDirectHandover){
       actions += `<button class="btn small solid" onclick="openDirectCheckout('${s.id}')">Hand over sample</button>`;
     }
     actions += `<button class="btn small" onclick="openTransferModal('${s.id}')">Transfer to another factory</button>`;
